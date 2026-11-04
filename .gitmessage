@@ -1,0 +1,35 @@
+# <type>(<scope>): <lowercase imperative subject (max 72 chars, NO EMOJIS)>
+# └ imperative, lowercase, no trailing period, header <= 72 chars, zero emojis
+#
+#
+# Explain *why* this change was needed. The diff already shows what changed.
+# Wrap lines at 72 columns.
+#
+# Refs #<issue-number>
+#
+# ---------------------------------------------------------------------------
+# Types:
+#   feat      a new capability (minor version bump)
+#   fix       a defect repair (patch version bump)
+#   docs      documentation only
+#   refactor  restructuring, no behavior change
+#   perf      performance improvement
+#   test      adding or correcting tests
+#   build     build system, dependencies, packaging
+#   ci        pipelines and workflows
+#   chore     maintenance that fits nothing else
+#   revert    reverting a previous commit
+#
+# Breaking change: feat(scope)!: ... or BREAKING CHANGE: footer
+#
+# Footers:
+#   Refs #<issue-number>  (REQUIRED: issue reference)
+#   Fixes #<issue-number> (closes issue on merge)
+#   Closes #<issue-number>
+#
+# Strict Rules:
+# - English only. No emojis anywhere.
+# - No tool attribution trailers, session URLs, or generation notes.
+# - Enable with: git config commit.template .gitmessage
+# - Full rules: AGENTS.md
+# ---------------------------------------------------------------------------
