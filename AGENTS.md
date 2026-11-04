@@ -92,7 +92,7 @@ The `aroma-pacifico` GitHub organization has one repository per concern:
 | Repository | Visibility | Holds |
 |---|---|---|
 | `aroma-pacifico-roadmap` | Private | Issues, milestones, labels only (no rules, no code) |
-| `aroma-pacifico-ai-agents` | Private | Canonical rules, standards, skills, the sync script (this task) |
+| `aroma-pacifico-ai-agents` | Private | Canonical rules, standards, skills and the sync script |
 | `aroma-pacifico-architecture` | Private | Case statement, decision log, ADRs, design documents, plan, observability, release notes, costs |
 | `aroma-pacifico-diagrams` | Private | Diagram sources and SVG/PNG exports, boxes D01-D13 |
 | `aroma-pacifico-terraform-modules` | **Public** | Reusable Terraform reference modules, versioned by git tag (pc-iac-015) |
