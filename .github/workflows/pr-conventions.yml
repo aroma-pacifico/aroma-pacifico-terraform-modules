@@ -1,0 +1,180 @@
+name: PR conventions
+
+on:
+  pull_request:
+    types: [opened, edited, synchronize, reopened]
+
+permissions:
+  contents: read
+  pull-requests: read
+
+concurrency:
+  group: pr-conventions-${{ github.event.pull_request.number }}
+  cancel-in-progress: true
+
+jobs:
+  title:
+    name: PR title is a Conventional Commit
+    runs-on: ubuntu-latest
+    steps:
+      # Squash-merge uses the PR title as the commit message on main.
+      - uses: amannn/action-semantic-pull-request@v5
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          types: |
+            feat
+            fix
+            docs
+            refactor
+            perf
+            test
+            build
+            ci
+            chore
+            revert
+          requireScope: false
+          scopes: |
+            case
+            standards
+            governance
+            workflow
+            agents
+            architecture
+            design
+            iac
+            docs
+            ci
+            deps
+            security
+            readme
+          subjectPattern: ^(?![A-Z]).+[^.]$
+          subjectPatternError: |
+            The subject "{subject}" is invalid.
+            Use the imperative mood, start lowercase, and omit the trailing period.
+            Example: feat(architecture): define telemetry ingestion pipeline
+
+  branch-and-hygiene:
+    name: Branch naming, language, and zero-emoji check
+    runs-on: ubuntu-latest
+    steps:
+      - name: Branch name follows <type>/<issue-number>-<slug>
+        env:
+          BRANCH: ${{ github.head_ref }}
+        run: |
+          branch="$BRANCH"
+          pattern='^(feat|fix|docs|refactor|perf|test|build|ci|chore|revert)/[0-9]+-[a-z0-9]+(-[a-z0-9]+)*$'
+          if ! printf '%s' "$branch" | grep -qE "$pattern"; then
+            echo "::error::Branch '$branch' does not match <type>/<issue-number>-<slug>."
+            echo "Examples: feat/12-telemetry-ingestion, chore/0-bootstrap-agent-rules"
+            exit 1
+          fi
+          echo "Branch name OK: $branch"
+
+      - name: Zero-emoji check on PR title and branch
+        env:
+          TITLE: ${{ github.event.pull_request.title }}
+          BRANCH: ${{ github.head_ref }}
+        run: |
+          title="$TITLE"
+          branch="$BRANCH"
+          python3 -c '
+          import sys, re
+          title = sys.argv[1]
+          branch = sys.argv[2]
+          emoji_pattern = re.compile(r"[\U00010000-\U0010ffff\u2600-\u27ff\u2300-\u23ff\u2b50-\u2b55\u200d\ufe0f]")
+          if emoji_pattern.search(title) or emoji_pattern.search(branch):
+              print("::error::Emojis found in PR title or branch name. Emojis are strictly forbidden.", file=sys.stderr)
+              sys.exit(1)
+          print("Zero-emoji check on PR title and branch OK.")
+          ' "$title" "$branch"
+
+      - name: No non-English text in title or branch
+        env:
+          TITLE: ${{ github.event.pull_request.title }}
+          BRANCH: ${{ github.head_ref }}
+        run: |
+          title="$TITLE"
+          branch="$BRANCH"
+          fail=0
+
+          if printf '%s' "$title $branch" | grep -qP '[áéíóúñÁÉÍÓÚÑ¿¡]'; then
+            echo "::error::Accented characters found. English only (AGENTS.md section 2)."
+            fail=1
+          fi
+
+          words='ambiente|efimero|persistente|plataforma|registro|identidad|verificar|huerfanos|construir|enrutado|convenciones|operacion|decisiones|logica|infraestructura'
+          if printf '%s' "$title $branch" | grep -qiE "\\b($words)\\b"; then
+            echo "::error::Spanish vocabulary found. English only (AGENTS.md section 2)."
+            fail=1
+          fi
+
+          exit "$fail"
+
+  commits:
+    name: Commit messages follow Conventional Commits and zero-emoji rule
+    runs-on: ubuntu-latest
+    steps:
+      # Check out the PR head, not the synthetic merge commit GitHub builds.
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.pull_request.head.sha }}
+          fetch-depth: 0
+
+      - name: Validate all commits on branch
+        env:
+          BASE_REF: ${{ github.base_ref }}
+        run: |
+          git fetch origin "$BASE_REF" --depth=200
+          commits=$(git rev-list "origin/$BASE_REF..HEAD")
+          if [ -z "$commits" ]; then
+            echo "No commits found on branch to check."
+            exit 0
+          fi
+
+          python3 -c '
+          import sys, re, subprocess
+
+          commits = sys.argv[1].split()
+          types_pattern = r"^(feat|fix|docs|refactor|perf|test|build|ci|chore|revert)(\([a-z0-9._-]+\))?!?: .+$"
+          emoji_pattern = re.compile(r"[\U00010000-\U0010ffff\u2600-\u27ff\u2300-\u23ff\u2b50-\u2b55\u200d\ufe0f]")
+          spanish_words = re.compile(r"\b(el|la|los|las|del|una|para|con|que|por|como|añadir|agregar|corregir|actualizar|eliminar)\b", re.IGNORECASE)
+
+          failed = False
+          for c in commits:
+              subject = subprocess.check_output(["git", "log", "-1", "--format=%s", c]).decode("utf-8").strip()
+              body = subprocess.check_output(["git", "log", "-1", "--format=%B", c]).decode("utf-8")
+
+              if not re.match(types_pattern, subject):
+                  print(f"::error::Commit {c[:7]} subject does not match Conventional Commits: {subject}")
+                  failed = True
+
+              if len(subject) > 72:
+                  print(f"::error::Commit {c[:7]} subject is {len(subject)} characters (max 72): {subject}")
+                  failed = True
+
+              if subject.endswith("."):
+                  print(f"::error::Commit {c[:7]} subject ends with a period: {subject}")
+                  failed = True
+
+              desc = re.sub(r"^(feat|fix|docs|refactor|perf|test|build|ci|chore|revert)(\([a-z0-9._-]+\))?!?: ", "", subject)
+              if desc and desc[0].isupper():
+                  print(f"::error::Commit {c[:7]} subject description must start lowercase: {desc}")
+                  failed = True
+
+              if emoji_pattern.search(body):
+                  print(f"::error::Commit {c[:7]} contains emojis. Emojis are strictly forbidden.")
+                  failed = True
+
+              if spanish_words.search(subject):
+                  print(f"::error::Commit {c[:7]} contains Spanish words in subject: {subject}")
+                  failed = True
+
+              if not re.search(r"(Refs|Fixes|Closes):?\s+(aroma-pacifico/[a-z0-9-]+)?#\d+", body):
+                  print(f"::error::Commit {c[:7]} missing mandatory issue reference footer (Refs #<issue>).")
+                  failed = True
+
+          if failed:
+              sys.exit(1)
+          print(f"All {len(commits)} commits passed convention checks.")
+          ' "$commits"
