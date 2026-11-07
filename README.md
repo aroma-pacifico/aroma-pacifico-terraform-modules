@@ -8,6 +8,20 @@ Part of the Aroma Pacífico pilot, the 2026 update of the coffee traceability pi
 
 This public repository holds reusable, versioned Terraform reference modules for the Aroma Pacífico pilot, consumed by git tag according to pc-iac-015. Modules strictly declare neither provider nor backend configurations and accept a `name_prefix` input. Because this repository is public, no account identifiers, account-qualified ARNs, internal hostnames, real endpoints, credentials, named principals, or client data are ever committed. Distributed AI agent rules and standards are synchronized here from the canonical `aroma-pacifico-ai-agents` repository.
 
+## Farm pattern (D08, unreleased)
+
+[The farm module](modules/farm/README.md) represents one farm's two logical
+IoT node identities and ingestion connection points. Mocked plan tests create
+no AWS resources. Environment integration and PD-071 cost-tag resolution remain
+pending; no release tag or deployable root integration is claimed.
+
+```text
+modules/farm/
+|-- main.tf, variables.tf, locals.tf, outputs.tf, versions.tf
+|-- data.tf, providers.tf, README.md, CHANGELOG.md, .gitignore
+`-- tests/ (plan-mode tests and synthetic public CSR fixtures)
+```
+
 ## Tasks delivered here
 
 - [B04](https://github.com/aroma-pacifico/aroma-pacifico-roadmap/issues/24)

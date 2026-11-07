@@ -20,6 +20,7 @@ override.tf.json
 *.auto.tfvars
 
 # Editors and OS
+.local/
 .idea/
 .vscode/
 .DS_Store
