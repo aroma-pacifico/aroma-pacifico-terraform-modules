@@ -221,6 +221,10 @@ PR exists. The historical D05 rejection was HTTP 403, `Write access to repositor
 not granted`; access has not been restored. A complete local Draft PR body is
 prepared using the repository template. No credential/remote workaround is used.
 
+The authorized [B08 progress comment and sanitized evidence snapshot](https://github.com/aroma-pacifico/aroma-pacifico-roadmap/issues/28#issuecomment-6713913430)
+were published successfully. This is the available remote evidence link; the
+module code and repository evidence document remain local pending push access.
+
 The diff exceeds the approximate 400-line review target because mandatory module
 layout, public CSR fixtures, explicit positive/negative tests, sample composition
 and reproducible evidence are included. Core resource logic is 34 lines. Review
