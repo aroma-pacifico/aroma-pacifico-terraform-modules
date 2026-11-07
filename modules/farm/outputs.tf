@@ -21,9 +21,9 @@ output "node_names" {
 output "store_and_forward_contract" {
   description = "A10 integration requirements, not implemented buffering, retries, latency, or delivery guarantees."
   value = {
-    protocol                = "MQTT over TLS", minimum_tls_version = "1.2", qos = 1,
-    maximum_buffer_hours    = 24, release_on = "PUBACK",
-    required_message_fields = ["node_id", "original_timestamp", "sequence_number", "values"]
+    protocol                  = "MQTT over TLS", minimum_tls_version = "1.2", qos = 1,
+    maximum_buffer_hours      = 24, release_on = "PUBACK",
+    required_message_metadata = ["node identity", "original reading timestamp", "sequence number", "measurement values"]
   }
 }
 

@@ -19,7 +19,9 @@ pending; no release tag or deployable root integration is claimed.
 modules/farm/
 |-- main.tf, variables.tf, locals.tf, outputs.tf, versions.tf
 |-- data.tf, providers.tf, README.md, CHANGELOG.md, .gitignore
+|-- sample/ (one root invocation and mocked environment association tests)
 `-- tests/ (plan-mode tests and synthetic public CSR fixtures)
+scripts/verify-farm.py
 ```
 
 ## Tasks delivered here

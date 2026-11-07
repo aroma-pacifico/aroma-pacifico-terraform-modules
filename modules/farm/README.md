@@ -31,6 +31,8 @@ Public outputs are `node_names`, `certificate_arns`, `ingestion_endpoint`,
 Full resource objects, certificate PEMs and private keys are not exported.
 CSR syntax checks are not signature verification; AWS validates real CSRs.
 The input accepts no private key, and CSR registration avoids generating one.
+The contract's message metadata labels are semantic requirements, not a new
+wire-format schema. B09 retains ownership of the accepted payload and topics.
 
 ## Store-and-forward boundary
 
@@ -80,7 +82,22 @@ farm/
 |-- providers.tf
 |-- variables.tf
 |-- versions.tf
+|-- sample/ (offline root, lockfile, fixtures and association tests)
 `-- tests/
     |-- farm_unit_test.tftest.hcl
     `-- fixtures/ (crop.csr, drying.csr; synthetic public requests only)
 ```
+
+## Verification
+
+The child declares `aws.project` without configuring it. Validate through the
+sample root, which supplies that alias; a direct child-as-root `validate`
+reports a missing provider configuration. That diagnostic is not evidence of
+existing state. Native tests inject mocks and run no AWS calls.
+
+After initializing both the child and sample with the supported provider,
+run `python scripts/verify-farm.py` from the repository root. It executes 14
+child scenarios, two root association scenarios and five isolated rejection
+fixtures. It inspects five valid JSON plan events for exactly eight identity
+creates, one farm and two node roles, with no destroys or replacements. These
+are mocked plan results, not account-plan or delivery evidence.
