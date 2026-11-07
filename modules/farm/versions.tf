@@ -1,3 +1,4 @@
+# Compatibility floor; consuming roots own provider pins and lockfiles.
 terraform {
   required_version = ">= 1.14.0"
   required_providers {

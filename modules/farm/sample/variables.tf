@@ -1,3 +1,4 @@
+# Synthetic root inputs; runtime ingestion and account discovery remain external.
 variable "client" {
   description = "Example root client value."
   type        = string

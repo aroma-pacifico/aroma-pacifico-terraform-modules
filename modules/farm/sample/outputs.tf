@@ -1,3 +1,4 @@
+# The consuming root exposes granular child integration points.
 output "certificate_arns" {
   description = "Child certificate references for root consumers."
   value       = module.farm.certificate_arns

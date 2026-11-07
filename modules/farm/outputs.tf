@@ -1,3 +1,4 @@
+# Deliberate public integration references, never whole resources or private keys.
 output "certificate_arns" {
   description = "Public certificate references by node role; no private keys or PEM material."
   value       = { for role, certificate in aws_iot_certificate.node : role => certificate.arn }

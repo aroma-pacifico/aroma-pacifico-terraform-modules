@@ -17,7 +17,7 @@ Use Terraform >= 1.14.0 and the root lockfile (AWS 6.0.0):
 ```text
 terraform -chdir=modules/farm/sample init -backend=false -input=false
 terraform -chdir=modules/farm/sample validate
-terraform -chdir=modules/farm/sample test -var-file=terraform.tfvars
+terraform -chdir=modules/farm/sample test "-var-file=terraform.tfvars"
 ```
 
 Both test runs explicitly use `command = plan` with a mocked `aws.principal`.

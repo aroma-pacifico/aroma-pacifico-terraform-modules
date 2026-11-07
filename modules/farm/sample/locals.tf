@@ -1,3 +1,4 @@
+# Roots construct governance names and transform file references into child inputs.
 locals {
   governance_prefix = "${var.client}-${var.project}-${var.environment}"
   name_prefix       = "${local.governance_prefix}-iot-${var.farm_key}"

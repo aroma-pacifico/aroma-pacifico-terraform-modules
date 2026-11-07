@@ -1,3 +1,4 @@
+# One farm's validated identity and ingestion contract; no environment defaults.
 variable "additional_tags" {
   description = "Desired non-secret cost metadata; current IoT resource types do not support AWS tags."
   type        = map(string)

@@ -14,6 +14,9 @@ This public repository holds reusable, versioned Terraform reference modules for
 IoT node identities and ingestion connection points. Mocked plan tests create
 no AWS resources. Environment integration and PD-071 cost-tag resolution remain
 pending; no release tag or deployable root integration is claimed.
+Read [D08 technical evidence](docs/d08-technical-evidence.md), the
+[integration decision register](docs/decision-log.md) and
+[troubleshooting log](docs/troubleshooting-log.md).
 
 ```text
 modules/farm/
@@ -22,6 +25,7 @@ modules/farm/
 |-- sample/ (one root invocation and mocked environment association tests)
 `-- tests/ (plan-mode tests and synthetic public CSR fixtures)
 scripts/verify-farm.py
+docs/ (d08-technical-evidence.md, decision-log.md, troubleshooting-log.md)
 ```
 
 ## Tasks delivered here

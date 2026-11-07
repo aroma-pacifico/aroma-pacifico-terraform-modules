@@ -1,3 +1,4 @@
+# One child invocation; resource and topic logic stays inside the reusable module.
 module "farm" {
   source = "../"
 
