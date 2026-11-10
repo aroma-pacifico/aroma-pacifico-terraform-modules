@@ -22,7 +22,7 @@ The **Aroma Pacífico pilot** represents the 2026 update of a coffee traceabilit
 1. **Strict Zero-Emoji Policy**: Emojis are strictly prohibited across all commit messages, PR titles, descriptions, code comments, documentation, and agent responses.
 2. **Trunk-Based Development**: `main` is protected. Work exclusively on short-lived branches: `<type>/<issue-number>-<kebab-slug>` (under 48 hours).
 3. **Atomic Conventional Commits**: `<type>(<scope>): <lowercase imperative subject>` (max 72 chars, no trailing period, no emojis) with a mandatory `Refs #<issue>` footer. Commit incrementally as work is completed.
-4. **Agent Publishing Boundary**: Agents commit locally and may push only their own feature branch and open a PR targeting `main`. Agents never push to `main`, never merge, never force-push, and never create repositories. The lead reviews and merges.
+4. **Agent Publishing Boundary**: Agents commit locally and may push only their own feature branch and open a PR targeting `main`. Agents never push to `main`, never force-push, and never create repositories. Implementer agents never merge. The designated reviewer agent, which runs on a different AI provider than the implementer, reviews the pull request and squash-merges it when it approves and every check is green, following the review protocol. A pull request that needs a business decision, weakens CI checks or deletes out-of-scope content goes to the human lead instead. The reviewer may delete the merged head branch. The human lead can still review or merge at any time.
 5. **Academic Delivery (Plan-Only)**: Never run `terraform apply` or `terraform destroy`. Never create live cloud resources or execute deployment pipelines.
 
 ---
