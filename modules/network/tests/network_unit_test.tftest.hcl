@@ -2,12 +2,37 @@ mock_provider "aws" {
   alias           = "project"
   override_during = plan
 
+  mock_data "aws_region" {
+    defaults = { region = "us-east-1" }
+  }
+
+  mock_resource "aws_route_table" {
+    defaults = { id = "rtb-mock" }
+  }
+
+  mock_resource "aws_security_group" {
+    defaults = { id = "sg-mock" }
+  }
+
+  mock_resource "aws_subnet" {
+    defaults = { id = "subnet-mock" }
+  }
+
   mock_data "aws_availability_zones" {
     defaults = { zone_ids = ["use1-az4", "use1-az1", "use1-az2", "use1-az6"] }
   }
 }
 
 variables {
+  organization_id = "o-a1b2c3d4e5"
+  interface_endpoints = {
+    cogn  = { service = "cognito-idp", tier = "application" }
+    exapi = { service = "execute-api", tier = "application" }
+    s3    = { service = "s3", tier = "object_storage" }
+    logs  = { service = "logs", tier = "administration" }
+    mon   = { service = "monitoring", tier = "administration" }
+    rola  = { service = "rolesanywhere", tier = "administration" }
+  }
   collection_center_firewall_cidr_blocks       = { cauca = "10.41.20.1/32", huila = "10.42.20.1/32", tolima = "10.43.20.1/32" }
   collection_center_ground_station_cidr_blocks = { cauca = "10.41.2.10/32", huila = "10.42.2.10/32", tolima = "10.43.2.10/32" }
   data_store_ports                             = [5432]
@@ -307,4 +332,119 @@ run "invalid_store_port_is_rejected" {
   }
 
   expect_failures = [var.data_store_ports]
+}
+
+run "gateway_endpoints_serve_the_private_tiers" {
+  command = plan
+
+  # The mock gives every route table the same ID, so public_query gets its own to prove it is excluded.
+  override_resource {
+    target          = aws_route_table.this["public_query"]
+    values          = { id = "rtb-pubq" }
+    override_during = plan
+  }
+
+  assert {
+    condition     = aws_vpc_endpoint.gateway["s3gw"].service_name == "com.amazonaws.us-east-1.s3" && aws_vpc_endpoint.gateway["ddbgw"].service_name == "com.amazonaws.us-east-1.dynamodb" && alltrue([for endpoint in values(aws_vpc_endpoint.gateway) : endpoint.vpc_endpoint_type == "Gateway"])
+    error_message = "S3 and DynamoDB must use gateway endpoints."
+  }
+
+  assert {
+    condition     = alltrue([for endpoint in values(aws_vpc_endpoint.gateway) : length(endpoint.route_table_ids) > 0 && !contains(endpoint.route_table_ids, "rtb-pubq")])
+    error_message = "Gateway endpoints must attach to the private tiers and never to public_query."
+  }
+
+  assert {
+    condition     = alltrue([for endpoint in values(aws_vpc_endpoint.gateway) : jsondecode(endpoint.policy).Statement[0].Condition.StringEquals["aws:ResourceOrgID"] == var.organization_id])
+    error_message = "Gateway endpoint policies must admit only resources of the organization (CL-DAT-03)."
+  }
+}
+
+run "interface_endpoints_live_only_in_three_tiers" {
+  command = plan
+
+  assert {
+    condition     = toset(keys(aws_vpc_endpoint.interface)) == toset(["cogn", "exapi", "s3", "logs", "mon", "rola"]) && aws_vpc_endpoint.interface["exapi"].service_name == "com.amazonaws.us-east-1.execute-api"
+    error_message = "Interface endpoints must follow interface_endpoints and the Region of the provider."
+  }
+
+  assert {
+    condition     = alltrue([for endpoint in values(aws_vpc_endpoint.interface) : endpoint.vpc_endpoint_type == "Interface" && endpoint.private_dns_enabled && length(endpoint.security_group_ids) == 1 && length(endpoint.subnet_ids) > 0 && length(endpoint.tags["Name"]) <= 28])
+    error_message = "Interface endpoints need private DNS, one security group, subnets and names within 28 characters."
+  }
+
+  assert {
+    condition     = toset(keys(aws_security_group.endpoints)) == toset(["application", "object_storage", "administration"])
+    error_message = "Only the three endpoint tiers may hold an endpoint security group; telemetry_ingress and drone_object_ingress hold none."
+  }
+
+  assert {
+    condition     = length(aws_vpc_security_group_ingress_rule.endpoints) == 6 && alltrue([for rule in values(aws_vpc_security_group_ingress_rule.endpoints) : rule.from_port == 443 && rule.to_port == 443 && rule.ip_protocol == "tcp" && contains(["10.82.0.0/16", "10.40.0.0/13"], rule.cidr_ipv4)])
+    error_message = "Endpoint security groups must accept only HTTPS from the VPC and the collection centers."
+  }
+}
+
+run "flow_logs_are_off_by_default" {
+  command = plan
+
+  assert {
+    condition     = length(aws_flow_log.rejected) == 0
+    error_message = "Without a destination no flow log is created."
+  }
+}
+
+run "flow_logs_record_rejected_traffic" {
+  command = plan
+
+  variables {
+    flow_logs = {
+      destination_arn = "arn:aws:logs:us-east-1:000000000000:log-group:fixture"
+      iam_role_arn    = "arn:aws:iam::000000000000:role/fixture"
+    }
+  }
+
+  assert {
+    condition     = length(aws_flow_log.rejected) == 1 && aws_flow_log.rejected[0].traffic_type == "REJECT"
+    error_message = "A supplied destination must enable the flow log of rejected traffic (CL-DEF-02)."
+  }
+}
+
+run "endpoint_in_telemetry_ingress_is_rejected" {
+  command = plan
+
+  variables {
+    interface_endpoints = { iot = { service = "iot.data", tier = "telemetry_ingress" } }
+  }
+
+  expect_failures = [var.interface_endpoints]
+}
+
+run "endpoint_in_drone_object_ingress_is_rejected" {
+  command = plan
+
+  variables {
+    interface_endpoints = { s3 = { service = "s3", tier = "drone_object_ingress" } }
+  }
+
+  expect_failures = [var.interface_endpoints]
+}
+
+run "long_endpoint_key_is_rejected" {
+  command = plan
+
+  variables {
+    interface_endpoints = { rolesanywhere = { service = "rolesanywhere", tier = "administration" } }
+  }
+
+  expect_failures = [var.interface_endpoints]
+}
+
+run "malformed_organization_id_is_rejected" {
+  command = plan
+
+  variables {
+    organization_id = "not-an-organization"
+  }
+
+  expect_failures = [var.organization_id]
 }

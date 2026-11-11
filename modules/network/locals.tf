@@ -138,6 +138,20 @@ locals {
     },
   )
 
+  # Gateway endpoints: key is the name suffix, value is the service (at most 6 characters in the key).
+  gateway_services = { s3gw = "s3", ddbgw = "dynamodb" }
+  # CL-DAT-03: every tier except the public one reaches AWS services through the endpoints.
+  private_tiers = [for tier in keys(local.tiers) : tier if tier != "public_query"]
+
+  endpoint_tiers = toset([for endpoint in values(var.interface_endpoints) : endpoint.tier])
+  endpoint_ingress_rules = {
+    for pair in setproduct(local.endpoint_tiers, ["vpc", "centers"]) : "${pair[0]}-${pair[1]}" => {
+      tier       = pair[0]
+      source     = pair[1] == "vpc" ? "the VPC" : "the collection centers"
+      cidr_block = pair[1] == "vpc" ? var.vpc_cidr_block : var.collection_center_summary_cidr_block
+    }
+  }
+
   # Terraform has no CIDR overlap function, so every block is reduced to its first and last address
   # as integers. Two blocks overlap exactly when their integer ranges intersect.
   cidr_blocks = merge(

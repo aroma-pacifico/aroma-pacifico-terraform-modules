@@ -38,6 +38,28 @@ variable "project" {
   type        = string
 }
 
+variable "flow_logs" {
+  description = "Flow log destination and role, or null."
+  type = object({
+    destination_arn = string
+    iam_role_arn    = string
+  })
+  default = null
+}
+
+variable "interface_endpoints" {
+  description = "Interface endpoints keyed by short name."
+  type = map(object({
+    service = string
+    tier    = string
+  }))
+}
+
+variable "organization_id" {
+  description = "Synthetic organization ID for the gateway endpoint policies."
+  type        = string
+}
+
 variable "region" {
   description = "AWS Region of the provider configuration."
   type        = string

@@ -3,6 +3,26 @@ output "availability_zone_ids" {
   value       = local.az_ids
 }
 
+output "endpoint_security_group_ids" {
+  description = "Security group ID of the interface endpoints of each tier that hosts any."
+  value       = { for tier, security_group in aws_security_group.endpoints : tier => security_group.id }
+}
+
+output "flow_log_id" {
+  description = "ID of the flow log of rejected traffic, or null when disabled."
+  value       = one(aws_flow_log.rejected[*].id)
+}
+
+output "gateway_endpoint_ids" {
+  description = "Gateway endpoint IDs keyed by service (s3, dynamodb)."
+  value       = { for key, service in local.gateway_services : service => aws_vpc_endpoint.gateway[key].id }
+}
+
+output "interface_endpoint_ids" {
+  description = "Interface endpoint IDs keyed by the short name given in interface_endpoints."
+  value       = { for key, endpoint in aws_vpc_endpoint.interface : key => endpoint.id }
+}
+
 output "internet_gateway_id" {
   description = "ID of the internet gateway, routed only from public_query."
   value       = aws_internet_gateway.this.id

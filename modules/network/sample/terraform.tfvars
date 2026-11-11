@@ -42,3 +42,18 @@ collection_center_ground_station_cidr_blocks = {
 
 # Fixture only: the real data store port is selected by the data design (A13).
 data_store_ports = [5432]
+
+# Synthetic organization ID: the real value is supplied by the root stack and never committed here.
+organization_id = "o-a1b2c3d4e5"
+
+# Service suffixes follow the firewall policy rows CL-APP-01, CL-DRN-01 and CL-ADM-02.
+# cognito-idp is UNVERIFIED: it is not listed on the AWS PrivateLink services page read on 2026-11-10,
+# so confirm interface endpoint support (PD-120, PD-200) before relying on it.
+interface_endpoints = {
+  cogn  = { service = "cognito-idp", tier = "application" }
+  exapi = { service = "execute-api", tier = "application" }
+  s3    = { service = "s3", tier = "object_storage" }
+  logs  = { service = "logs", tier = "administration" }
+  mon   = { service = "monitoring", tier = "administration" }
+  rola  = { service = "rolesanywhere", tier = "administration" }
+}

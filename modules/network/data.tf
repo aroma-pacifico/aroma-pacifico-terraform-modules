@@ -4,3 +4,8 @@ data "aws_availability_zones" "available" {
 
   state = "available"
 }
+
+# The endpoint service names embed the Region of the provider.
+data "aws_region" "current" {
+  provider = aws.project
+}

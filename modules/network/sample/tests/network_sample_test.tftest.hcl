@@ -2,6 +2,10 @@ mock_provider "aws" {
   alias           = "principal"
   override_during = plan
 
+  mock_data "aws_region" {
+    defaults = { region = "us-east-1" }
+  }
+
   mock_data "aws_availability_zones" {
     defaults = { zone_ids = ["use1-az1", "use1-az2", "use1-az4", "use1-az6"] }
   }
@@ -18,6 +22,11 @@ run "sample_plans_without_overlapping_the_centers" {
   assert {
     condition     = length(output.route_table_ids) == 8
     error_message = "The sample must plan one route table per tier."
+  }
+
+  assert {
+    condition     = length(output.interface_endpoint_ids) == 6 && length(module.network.gateway_endpoint_ids) == 2
+    error_message = "The sample must plan six interface endpoints and two gateway endpoints."
   }
 
   # Every block is /16 or longer, so it overlaps 10.41/16, 10.42/16 or 10.43/16 only if its first two octets match.
