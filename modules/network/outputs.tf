@@ -8,6 +8,11 @@ output "internet_gateway_id" {
   value       = aws_internet_gateway.this.id
 }
 
+output "network_acl_ids" {
+  description = "Network ACL ID of each tier."
+  value       = { for tier, network_acl in aws_network_acl.this : tier => network_acl.id }
+}
+
 output "route_table_ids" {
   description = "Route table ID of each tier, for later routes and associations."
   value       = { for tier, route_table in aws_route_table.this : tier => route_table.id }

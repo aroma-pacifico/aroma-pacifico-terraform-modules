@@ -34,6 +34,38 @@ variable "collection_center_cidr_blocks" {
   }
 }
 
+variable "collection_center_firewall_cidr_blocks" {
+  description = "Host address (/32) of each collection center firewall, keyed like collection_center_cidr_blocks (CL-ADM-04)."
+  type        = map(string)
+  nullable    = false
+
+  validation {
+    condition     = alltrue([for cidr_block in values(var.collection_center_firewall_cidr_blocks) : can(cidrhost(cidr_block, 0)) && endswith(cidr_block, "/32")])
+    error_message = "Every collection center firewall must be a single IPv4 address written as /32."
+  }
+
+  validation {
+    condition     = length(setsubtract(keys(var.collection_center_firewall_cidr_blocks), keys(var.collection_center_cidr_blocks))) + length(setsubtract(keys(var.collection_center_cidr_blocks), keys(var.collection_center_firewall_cidr_blocks))) == 0
+    error_message = "Firewall addresses must be keyed by exactly the collection centers of collection_center_cidr_blocks."
+  }
+}
+
+variable "collection_center_ground_station_cidr_blocks" {
+  description = "Host address (/32) of each collection center ground station, keyed like collection_center_cidr_blocks (CL-DRN-04)."
+  type        = map(string)
+  nullable    = false
+
+  validation {
+    condition     = alltrue([for cidr_block in values(var.collection_center_ground_station_cidr_blocks) : can(cidrhost(cidr_block, 0)) && endswith(cidr_block, "/32")])
+    error_message = "Every ground station must be a single IPv4 address written as /32."
+  }
+
+  validation {
+    condition     = length(setsubtract(keys(var.collection_center_ground_station_cidr_blocks), keys(var.collection_center_cidr_blocks))) + length(setsubtract(keys(var.collection_center_cidr_blocks), keys(var.collection_center_ground_station_cidr_blocks))) == 0
+    error_message = "Ground station addresses must be keyed by exactly the collection centers of collection_center_cidr_blocks."
+  }
+}
+
 variable "collection_center_summary_cidr_block" {
   description = "Single CIDR block that summarizes every present and future collection center, routed through the transit gateway."
   type        = string
@@ -42,6 +74,17 @@ variable "collection_center_summary_cidr_block" {
   validation {
     condition     = can(cidrhost(var.collection_center_summary_cidr_block, 0))
     error_message = "Collection center summary must be a valid IPv4 CIDR block."
+  }
+}
+
+variable "data_store_ports" {
+  description = "TCP ports of the data store that the application tier may reach (CL-DAT-02). An empty list leaves the data tier denying everything."
+  type        = list(number)
+  nullable    = false
+
+  validation {
+    condition     = alltrue([for port in var.data_store_ports : port >= 1 && port <= 65535 && port == floor(port)])
+    error_message = "Every data store port must be an integer between 1 and 65535."
   }
 }
 

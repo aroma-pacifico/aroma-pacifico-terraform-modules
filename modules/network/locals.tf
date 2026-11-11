@@ -39,6 +39,105 @@ locals {
   # as a documented reservation although it holds no endpoint (PD-140, ASM-140). No transit gateway, no route.
   center_routed_tiers = var.transit_gateway_id == null ? toset([]) : toset(["application", "drone_object_ingress", "object_storage", "administration"])
 
+  # Network ACL rules of the firewall policy (rows CL-*). One spec per rule family; a spec with several
+  # CIDR blocks expands to one rule per block. Rule numbers follow the order of the list.
+  anywhere                = ["0.0.0.0/0"]
+  centers_and_vpc         = [var.collection_center_summary_cidr_block, var.vpc_cidr_block]
+  stations_and_vpc        = concat(values(var.collection_center_ground_station_cidr_blocks), [var.vpc_cidr_block])
+  application_cidr_blocks = values(var.subnets["application"])
+  firewall_cidr_blocks    = values(var.collection_center_firewall_cidr_blocks)
+
+  acl_specs = {
+    # CL-PUB-04: the only internet-facing tier.
+    public_query = {
+      ingress = [{ protocol = "tcp", action = "allow", cidrs = local.anywhere, from_port = 443, to_port = 443 }]
+      egress  = [{ protocol = "tcp", action = "allow", cidrs = local.anywhere, from_port = 1024, to_port = 65535 }]
+    }
+    # CL-TEL-04: no private telemetry path in the pilot, so only the final deny applies.
+    telemetry_ingress = { ingress = [], egress = [] }
+    # CL-DRN-04: sources are the ground stations and the VPC. drone_object_ingress holds no endpoint (PD-140).
+    drone_object_ingress = {
+      ingress = [
+        { protocol = "tcp", action = "allow", cidrs = local.stations_and_vpc, from_port = 443, to_port = 443 },
+        { protocol = "tcp", action = "allow", cidrs = local.anywhere, from_port = 1024, to_port = 65535 },
+      ]
+      egress = [
+        { protocol = "tcp", action = "allow", cidrs = local.stations_and_vpc, from_port = 1024, to_port = 65535 },
+        { protocol = "tcp", action = "allow", cidrs = local.anywhere, from_port = 443, to_port = 443 },
+      ]
+    }
+    object_storage = {
+      ingress = [
+        { protocol = "tcp", action = "allow", cidrs = local.stations_and_vpc, from_port = 443, to_port = 443 },
+        { protocol = "tcp", action = "allow", cidrs = local.anywhere, from_port = 1024, to_port = 65535 },
+      ]
+      egress = [
+        { protocol = "tcp", action = "allow", cidrs = local.stations_and_vpc, from_port = 1024, to_port = 65535 },
+        { protocol = "tcp", action = "allow", cidrs = local.anywhere, from_port = 443, to_port = 443 },
+      ]
+    }
+    # CL-APP-03: outbound 443 to anywhere stays open because gateway endpoint destinations are AWS public
+    # ranges that an ACL cannot name; security groups narrow it (pc-iac-020 exception, see the README).
+    application = {
+      ingress = [
+        { protocol = "tcp", action = "allow", cidrs = local.centers_and_vpc, from_port = 443, to_port = 443 },
+        { protocol = "tcp", action = "allow", cidrs = local.anywhere, from_port = 1024, to_port = 65535 },
+      ]
+      egress = [
+        { protocol = "tcp", action = "allow", cidrs = local.centers_and_vpc, from_port = 1024, to_port = 65535 },
+        { protocol = "tcp", action = "allow", cidrs = local.anywhere, from_port = 443, to_port = 443 },
+      ]
+    }
+    # CL-DAT-01 and CL-DAT-02: deny every center first, then allow the application tier on the store ports.
+    # The egress rule is the stateless return path. An empty port list leaves only the denies.
+    data = {
+      ingress = concat(
+        [{ protocol = "-1", action = "deny", cidrs = [var.collection_center_summary_cidr_block], from_port = null, to_port = null }],
+        [for port in var.data_store_ports : { protocol = "tcp", action = "allow", cidrs = local.application_cidr_blocks, from_port = port, to_port = port }],
+      )
+      egress = [{ protocol = "tcp", action = "allow", cidrs = local.application_cidr_blocks, from_port = 1024, to_port = 65535 }]
+    }
+    # CL-ADM-04
+    administration = {
+      ingress = [
+        { protocol = "udp", action = "allow", cidrs = local.firewall_cidr_blocks, from_port = 53, to_port = 53 },
+        { protocol = "tcp", action = "allow", cidrs = local.firewall_cidr_blocks, from_port = 53, to_port = 53 },
+        { protocol = "tcp", action = "allow", cidrs = local.firewall_cidr_blocks, from_port = 443, to_port = 443 },
+        { protocol = "tcp", action = "allow", cidrs = [var.collection_center_summary_cidr_block], from_port = 1024, to_port = 65535 },
+        { protocol = "tcp", action = "allow", cidrs = [var.vpc_cidr_block], from_port = 443, to_port = 443 },
+      ]
+      egress = [
+        { protocol = "udp", action = "allow", cidrs = local.firewall_cidr_blocks, from_port = 1024, to_port = 65535 },
+        { protocol = "tcp", action = "allow", cidrs = local.firewall_cidr_blocks, from_port = 1024, to_port = 65535 },
+        { protocol = "tcp", action = "allow", cidrs = [var.collection_center_summary_cidr_block], from_port = 22, to_port = 22 },
+        { protocol = "tcp", action = "allow", cidrs = [var.collection_center_summary_cidr_block], from_port = 443, to_port = 443 },
+        { protocol = "tcp", action = "allow", cidrs = [var.vpc_cidr_block], from_port = 1024, to_port = 65535 },
+      ]
+    }
+    # CL-LNK-08: attachment subnets pass only center and VPC traffic.
+    transit = {
+      ingress = [{ protocol = "-1", action = "allow", cidrs = local.centers_and_vpc, from_port = null, to_port = null }]
+      egress  = [{ protocol = "-1", action = "allow", cidrs = local.centers_and_vpc, from_port = null, to_port = null }]
+    }
+  }
+
+  acl_rules = merge(
+    merge([
+      for tier, directions in local.acl_specs : merge([
+        for direction, specs in directions : {
+          for index, rule in flatten([for spec in specs : [for cidr_block in spec.cidrs : merge(spec, { cidr_block = cidr_block })]]) :
+          "${tier}-${direction}-${index}" => merge(rule, { tier = tier, egress = direction == "egress", rule_number = 100 + 10 * index })
+        }
+      ]...)
+    ]...),
+    {
+      for pair in setproduct(keys(local.tiers), ["ingress", "egress"]) : "${pair[0]}-${pair[1]}-final" => {
+        tier       = pair[0], egress = pair[1] == "egress", rule_number = 32766, protocol = "-1", action = "deny"
+        cidr_block = "0.0.0.0/0", from_port = null, to_port = null
+      }
+    },
+  )
+
   # Terraform has no CIDR overlap function, so every block is reduced to its first and last address
   # as integers. Two blocks overlap exactly when their integer ranges intersect.
   cidr_blocks = merge(
