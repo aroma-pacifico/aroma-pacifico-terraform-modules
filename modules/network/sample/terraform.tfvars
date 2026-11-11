@@ -26,3 +26,19 @@ collection_center_cidr_blocks = {
 
 collection_center_summary_cidr_block = "10.40.0.0/13"
 transit_gateway_id                   = "tgw-0123456789abcdef0"
+
+# Firewall and ground station hosts follow the case statement inventory (zone 20 host .1 and zone 2 host .10).
+collection_center_firewall_cidr_blocks = {
+  cauca  = "10.41.20.1/32"
+  huila  = "10.42.20.1/32"
+  tolima = "10.43.20.1/32"
+}
+
+collection_center_ground_station_cidr_blocks = {
+  cauca  = "10.41.2.10/32"
+  huila  = "10.42.2.10/32"
+  tolima = "10.43.2.10/32"
+}
+
+# Fixture only: the real data store port is selected by the data design (A13).
+data_store_ports = [5432]

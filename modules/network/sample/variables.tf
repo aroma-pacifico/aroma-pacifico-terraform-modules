@@ -8,9 +8,24 @@ variable "collection_center_cidr_blocks" {
   type        = map(string)
 }
 
+variable "collection_center_firewall_cidr_blocks" {
+  description = "Synthetic firewall host address of each center."
+  type        = map(string)
+}
+
+variable "collection_center_ground_station_cidr_blocks" {
+  description = "Synthetic ground station host address of each center."
+  type        = map(string)
+}
+
 variable "collection_center_summary_cidr_block" {
   description = "Single CIDR block that summarizes every collection center."
   type        = string
+}
+
+variable "data_store_ports" {
+  description = "Fixture TCP ports of the data store; the real port comes from the data design."
+  type        = list(number)
 }
 
 variable "environment" {
