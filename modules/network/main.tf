@@ -18,6 +18,14 @@ resource "aws_vpc" "this" {
     }
 
     precondition {
+      condition = alltrue([
+        for center in keys(var.collection_center_cidr_blocks) :
+        local.cidr_ranges["summary"].first <= local.cidr_ranges["center-${center}"].first && local.cidr_ranges["center-${center}"].last <= local.cidr_ranges["summary"].last
+      ]) && (local.cidr_ranges["summary"].last < local.cidr_ranges["vpc"].first || local.cidr_ranges["vpc"].last < local.cidr_ranges["summary"].first)
+      error_message = "Collection center summary must contain every center block and must not overlap the VPC CIDR block."
+    }
+
+    precondition {
       condition     = alltrue([for key in keys(local.subnets) : local.cidr_ranges["subnet-${key}"].first >= local.cidr_ranges["vpc"].first && local.cidr_ranges["subnet-${key}"].last <= local.cidr_ranges["vpc"].last])
       error_message = "Every subnet CIDR block must lie inside the VPC CIDR block."
     }

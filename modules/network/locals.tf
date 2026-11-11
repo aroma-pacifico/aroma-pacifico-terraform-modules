@@ -29,15 +29,20 @@ locals {
     for tier, azs in var.subnets : {
       for az, cidr_block in azs : "${tier}-${az}" => {
         az         = az
+        tier       = tier
         cidr_block = cidr_block
         name       = "${var.name_prefix}-snet-${local.tiers[tier].code}${trimprefix(az, "az")}"
       }
     }
   ]...)
+  # CL-LNK-07: only these tiers carry the route to the collection centers. drone_object_ingress keeps it
+  # as a documented reservation although it holds no endpoint (PD-140, ASM-140). No transit gateway, no route.
+  center_routed_tiers = var.transit_gateway_id == null ? toset([]) : toset(["application", "drone_object_ingress", "object_storage", "administration"])
+
   # Terraform has no CIDR overlap function, so every block is reduced to its first and last address
   # as integers. Two blocks overlap exactly when their integer ranges intersect.
   cidr_blocks = merge(
-    { vpc = var.vpc_cidr_block },
+    { vpc = var.vpc_cidr_block, summary = var.collection_center_summary_cidr_block },
     { for center, cidr_block in var.collection_center_cidr_blocks : "center-${center}" => cidr_block },
     { for key, subnet in local.subnets : "subnet-${key}" => subnet.cidr_block },
   )

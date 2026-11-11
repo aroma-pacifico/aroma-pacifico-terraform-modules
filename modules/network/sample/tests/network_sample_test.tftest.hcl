@@ -15,6 +15,11 @@ run "sample_plans_without_overlapping_the_centers" {
     error_message = "The sample must plan eight tiers with three subnets each."
   }
 
+  assert {
+    condition     = length(output.route_table_ids) == 8
+    error_message = "The sample must plan one route table per tier."
+  }
+
   # Every block is /16 or longer, so it overlaps 10.41/16, 10.42/16 or 10.43/16 only if its first two octets match.
   assert {
     condition = alltrue([

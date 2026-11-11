@@ -23,3 +23,6 @@ collection_center_cidr_blocks = {
   huila  = "10.42.0.0/16"
   tolima = "10.43.0.0/16"
 }
+
+collection_center_summary_cidr_block = "10.40.0.0/13"
+transit_gateway_id                   = "tgw-0123456789abcdef0"

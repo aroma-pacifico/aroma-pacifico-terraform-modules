@@ -34,6 +34,17 @@ variable "collection_center_cidr_blocks" {
   }
 }
 
+variable "collection_center_summary_cidr_block" {
+  description = "Single CIDR block that summarizes every present and future collection center, routed through the transit gateway."
+  type        = string
+  nullable    = false
+
+  validation {
+    condition     = can(cidrhost(var.collection_center_summary_cidr_block, 0))
+    error_message = "Collection center summary must be a valid IPv4 CIDR block."
+  }
+}
+
 variable "environment" {
   description = "Environment code: dev, qa or pdn."
   type        = string
@@ -90,6 +101,17 @@ variable "subnets" {
   validation {
     condition     = length(distinct(flatten([for azs in values(var.subnets) : values(azs)]))) == length(flatten([for azs in values(var.subnets) : values(azs)]))
     error_message = "Subnet CIDR blocks must be unique."
+  }
+}
+
+variable "transit_gateway_id" {
+  description = "Transit gateway of the network account. Null creates no route to the collection centers. The attachment is not created by this module."
+  type        = string
+  default     = null
+
+  validation {
+    condition     = var.transit_gateway_id == null || can(regex("^tgw-[0-9a-f]{8,17}$", var.transit_gateway_id))
+    error_message = "Transit gateway ID must be null or look like tgw-0123456789abcdef0."
   }
 }
 
