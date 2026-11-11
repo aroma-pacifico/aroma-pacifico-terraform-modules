@@ -209,3 +209,21 @@ run "duplicate_csr_trailing_whitespace" {
   }
   expect_failures = [var.nodes]
 }
+
+run "empty_topic_level" {
+  command = plan
+  variables { ingestion = { environment = "qa", endpoint = "ingestion.example.invalid", policy_name = "fixture-policy", topic_template = "fixture//{thing_name}" } }
+  expect_failures = [var.ingestion]
+}
+
+run "unknown_topic_placeholder" {
+  command = plan
+  variables { ingestion = { environment = "qa", endpoint = "ingestion.example.invalid", policy_name = "fixture-policy", topic_template = "fixture/{unknown}/{thing_name}" } }
+  expect_failures = [var.ingestion]
+}
+
+run "invalid_policy_reference" {
+  command = plan
+  variables { ingestion = { environment = "qa", endpoint = "ingestion.example.invalid", policy_name = "invalid policy", topic_template = "fixture/{thing_name}" } }
+  expect_failures = [var.ingestion]
+}

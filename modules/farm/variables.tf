@@ -58,12 +58,12 @@ variable "ingestion" {
     error_message = "Ingestion endpoint must be a DNS hostname without a URL scheme, port, or path."
   }
   validation {
-    condition     = try(trimspace(var.ingestion.policy_name) != "", false)
-    error_message = "An existing ingestion policy name is required."
+    condition     = can(regex("^[A-Za-z0-9_-]{1,128}$", var.ingestion.policy_name))
+    error_message = "An existing IoT policy name must contain 1 to 128 letters, digits, underscores or hyphens."
   }
   validation {
-    condition     = try(length(regexall("\\{thing_name\\}", var.ingestion.topic_template)) == 1 && !strcontains(var.ingestion.topic_template, "+") && !strcontains(var.ingestion.topic_template, "#"), false)
-    error_message = "The publish topic template must contain exactly one {thing_name} and no MQTT wildcards."
+    condition     = try(length(regexall("\\{thing_name\\}", var.ingestion.topic_template)) == 1 && !strcontains(var.ingestion.topic_template, "+") && !strcontains(var.ingestion.topic_template, "#") && can(regex("^[A-Za-z0-9_/-]+$", replace(var.ingestion.topic_template, "{thing_name}", "node"))) && !startswith(var.ingestion.topic_template, "/") && !endswith(var.ingestion.topic_template, "/") && !strcontains(var.ingestion.topic_template, "//"), false)
+    error_message = "Use one {thing_name} placeholder, nonempty slash-separated ASCII namespace levels, and no MQTT wildcards or other placeholders."
   }
 }
 
