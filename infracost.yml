@@ -14,3 +14,6 @@ projects:
   - name: modules/farm/sample
     path: modules/farm/sample
     terraform_var_files: [terraform.tfvars]
+  - name: modules/state-backend/sample
+    path: modules/state-backend/sample
+    terraform_var_files: [terraform.tfvars]

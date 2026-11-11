@@ -19,7 +19,8 @@ aroma-pacifico-terraform-modules/
 |-- .terraform-version                   exact Terraform patch used by local runs and CI
 |-- .tflint.hcl                          TFLint configuration for module and provider linting
 |-- infracost.yml                        Infracost project configuration for sample roots
-|-- modules/                             one directory per reference module, added by B04 to B10
+|-- modules/                             one directory per reference module, added by B02 and B04 to B10
+|   |-- state-backend/                   B02, S3 and KMS state backend of one environment
 |   |-- network/                         B04, box D04
 |   |-- collection-center-association/   B05, box D05
 |   |-- security-baseline/               B06, box D06
@@ -159,6 +160,7 @@ The `main` branch must be protected and reached only through pull requests. Enab
 
 ## Tasks delivered here
 
+- [B02](https://github.com/aroma-pacifico/aroma-pacifico-roadmap/issues/22)
 - [B04](https://github.com/aroma-pacifico/aroma-pacifico-roadmap/issues/24)
 - [B05](https://github.com/aroma-pacifico/aroma-pacifico-roadmap/issues/25)
 - [B06](https://github.com/aroma-pacifico/aroma-pacifico-roadmap/issues/26)
