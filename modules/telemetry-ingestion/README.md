@@ -20,7 +20,7 @@ The module implements the ingestion pattern only. The sack lookup (public lookup
 | Excluded | Where it lives |
 |---|---|
 | Thing, X.509 certificate from a CSR, attachment of the policy | Farm module (B08). The module outputs the policy name and topic template it needs. |
-| IAM roles of the rule and of IoT logging, KMS keys and their key policies | Security stack (B06). Roles and keys are inputs. |
+| IAM roles of the rule and of IoT logging, KMS keys and their key policies | Security module (B06), from `v0.5.0` for the two roles. Roles and keys are inputs. |
 | Threshold queue, its dead-letter queue and the function | Inference-functions module (B10). The queue URL is an input; the rule ARN is an output. |
 | Alert store, thresholds table, SNS alert topic, farmer channel | Architecture designs A14 and A17; not Epic 6. |
 | Revocation of a certificate | Operational procedure (A09), through the revocation role of the security module. |
@@ -63,7 +63,14 @@ The device contract of the farm module leaves the wire format to this module. A 
 
 ## Wiring (what the roots must supply)
 
-The security stack creates `rule_role_arn`: trust for `iot.amazonaws.com`, `dynamodb:PutItem` on the telemetry table, `sqs:SendMessage` on the threshold queue and the rule error queue, and use of the `telemetry` and `records` keys. It also creates `logging_role_arn`. Both roles must be listed in `key_user_arns` of the security module, and the `logs` key policy must admit CloudWatch Logs. The table and queue names are deterministic (`<name_prefix>-ddb-tel`, `<name_prefix>-iot-dlq`), so the roles can be scoped before this module is applied.
+This module creates no IAM role. `modules/security` at tag `v0.5.0` or later creates both roles, and the root passes their ARNs from its outputs `iot_rule_role_arn` and `iot_logging_role_arn` (the security stack exposes the same names) to `rule_role_arn` and `logging_role_arn`.
+
+| Role | What the security module grants | Key policy |
+|---|---|---|
+| Topic rule role (`rule_role_arn`) | Trust for `iot.amazonaws.com`, limited to the one topic rule of the prefix. `dynamodb:PutItem` on the telemetry table, `sqs:SendMessage` on the threshold queue and on the rule error queue, and `kms:Decrypt` and `kms:GenerateDataKey` on the `telemetry` and `records` keys. | The security module adds the role to the `UseKey` statement of the `telemetry` and `records` key policies by itself. The root must not repeat it in `key_user_arns` of the module (`key_user_role_names` of the stack). |
+| IoT logging role (`logging_role_arn`) | Trust for `iot.amazonaws.com`, limited to the account. `logs:CreateLogStream`, `logs:DescribeLogStreams` and `logs:PutLogEvents` on the `AWSIotLogsV2` group, which this module creates. | None. The `logs` key policy admits the CloudWatch Logs service, so the role needs no key grant. |
+
+The grants are built from names, not from inputs of the security module: the table `<name_prefix>-ddb-tel`, the error queue `<name_prefix>-iot-dlq`, the threshold queue `<name_prefix>-sqs-thresh` (function key `thresh` of the inference-functions module) and the topic rule `<name_prefix with underscores>_iot_rul`. The roles can therefore be scoped before this module is applied, and a different `name_prefix` or function key in the root has to be matched in the security module.
 
 The inference-functions module allows IoT to send to the threshold queue through `queue_senders` (`iot.amazonaws.com` with `topic_rule_arn` as the source). Pass `topic_rule_arn` from this module, which does not depend on the queue, so the two modules form no cycle. The farm module takes `ingestion` as its `ingestion` input.
 
