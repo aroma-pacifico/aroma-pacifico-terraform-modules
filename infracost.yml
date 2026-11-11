@@ -17,3 +17,6 @@ projects:
   - name: modules/state-backend/sample
     path: modules/state-backend/sample
     terraform_var_files: [terraform.tfvars]
+  - name: modules/telemetry-ingestion/sample
+    path: modules/telemetry-ingestion/sample
+    terraform_var_files: [terraform.tfvars]
