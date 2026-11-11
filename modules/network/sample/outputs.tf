@@ -1,3 +1,8 @@
+output "interface_endpoint_ids" {
+  description = "Interface endpoint IDs keyed by short name."
+  value       = module.network.interface_endpoint_ids
+}
+
 output "network_acl_ids" {
   description = "Network ACL ID of each tier."
   value       = module.network.network_acl_ids
