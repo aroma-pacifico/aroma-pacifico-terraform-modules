@@ -46,3 +46,61 @@ run "missing_bootstrap_domain" {
   }
   expect_failures = [var.configuration]
 }
+
+run "dev_bootstrap_without_backend" {
+  command = plan
+  variables {
+    configuration = {
+      client                = "fx", project = "cf", environment = "dev", resource_key = "state"
+      aws_context           = { account_id = format("%012d", 1), partition = "aws", region = "us-east-1" }
+      execution_role_arn    = "arn:aws:iam::${format("%012d", 1)}:role/fixture-auditor"
+      owner                 = "fixture", cost_center = "fixture"
+      key_administrators    = ["arn:aws:iam::${format("%012d", 1)}:role/fixture-admin"]
+      configuration_readers = ["arn:aws:iam::${format("%012d", 1)}:role/fixture-auditor"]
+      domain_access = {
+        for domain in ["network", "security", "workload", "state-backend"] : domain => {
+          plan_role_arns  = ["arn:aws:iam::${format("%012d", 1)}:role/fixture-${domain}-plan"]
+          write_role_arns = ["arn:aws:iam::${format("%012d", 1)}:role/fixture-${domain}-writer"]
+        }
+      }
+    }
+  }
+  override_resource {
+    target          = module.state_backend.aws_kms_key.state
+    values          = { arn = "arn:aws:kms:us-east-1:${format("%012d", 1)}:key/00000000-0000-0000-0000-000000000001", key_id = "00000000-0000-0000-0000-000000000001" }
+    override_during = plan
+  }
+  assert {
+    condition     = length(output.backend_configuration) == 4 && alltrue([for domain, config in output.backend_configuration : config.bucket == "fx-cf-dev-state" && config.key == "${domain}/terraform.tfstate" && config.allowed_account_ids == [format("%012d", 1)] && strcontains(config.kms_key_id, ":${format("%012d", 1)}:key/") && config.encrypt && config.use_lockfile])
+    error_message = "Each environment must retain an isolated account, bucket, KMS key and four native-locking domain configurations."
+  }
+}
+
+run "pdn_bootstrap_without_backend" {
+  command = plan
+  variables {
+    configuration = {
+      client                = "fx", project = "cf", environment = "pdn", resource_key = "state"
+      aws_context           = { account_id = format("%012d", 2), partition = "aws", region = "us-east-1" }
+      execution_role_arn    = "arn:aws:iam::${format("%012d", 2)}:role/fixture-auditor"
+      owner                 = "fixture", cost_center = "fixture"
+      key_administrators    = ["arn:aws:iam::${format("%012d", 2)}:role/fixture-admin"]
+      configuration_readers = ["arn:aws:iam::${format("%012d", 2)}:role/fixture-auditor"]
+      domain_access = {
+        for domain in ["network", "security", "workload", "state-backend"] : domain => {
+          plan_role_arns  = ["arn:aws:iam::${format("%012d", 2)}:role/fixture-${domain}-plan"]
+          write_role_arns = ["arn:aws:iam::${format("%012d", 2)}:role/fixture-${domain}-writer"]
+        }
+      }
+    }
+  }
+  override_resource {
+    target          = module.state_backend.aws_kms_key.state
+    values          = { arn = "arn:aws:kms:us-east-1:${format("%012d", 2)}:key/00000000-0000-0000-0000-000000000002", key_id = "00000000-0000-0000-0000-000000000002" }
+    override_during = plan
+  }
+  assert {
+    condition     = length(output.backend_configuration) == 4 && alltrue([for domain, config in output.backend_configuration : config.bucket == "fx-cf-pdn-state" && config.key == "${domain}/terraform.tfstate" && config.allowed_account_ids == [format("%012d", 2)] && strcontains(config.kms_key_id, ":${format("%012d", 2)}:key/") && config.encrypt && config.use_lockfile])
+    error_message = "Each environment must retain an isolated account, bucket, KMS key and four native-locking domain configurations."
+  }
+}
