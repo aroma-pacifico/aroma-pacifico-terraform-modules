@@ -1,0 +1,113 @@
+name: Module CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: module-ci-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
+env:
+  TERRAFORM_VERSION: "1.15.8"
+
+jobs:
+  discover:
+    name: Discover validation targets
+    runs-on: ubuntu-latest
+    outputs:
+      targets: ${{ steps.set-targets.outputs.targets }}
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.2.2
+
+      - name: List module and sample directories
+        id: set-targets
+        run: |
+          targets=()
+          for mod in modules/*; do
+            if [ -d "$mod" ]; then
+              targets+=("$mod")
+              if [ -d "$mod/sample" ]; then
+                targets+=("$mod/sample")
+              fi
+            fi
+          done
+          printf 'targets=%s\n' "$(jq -cn --args '$ARGS.positional' "${targets[@]}")" >> "$GITHUB_OUTPUT"
+
+  validate:
+    name: Validate (${{ matrix.target }})
+    needs: [discover]
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        target: ${{ fromJson(needs.discover.outputs.targets) }}
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.2.2
+
+      - name: Set up Terraform
+        uses: hashicorp/setup-terraform@b9cd54a3c349d3f38e8881555d616ced269862dd # v3.1.2
+        with:
+          terraform_version: ${{ env.TERRAFORM_VERSION }}
+          terraform_wrapper: false
+
+      - name: Set up TFLint
+        uses: terraform-linters/setup-tflint@90f302c255ef959cbfb4bd10581afecdb7ece3e6 # v4.1.1
+        with:
+          tflint_version: latest
+
+      - name: Format check (terraform fmt)
+        run: |
+          terraform -chdir="${{ matrix.target }}" fmt -check -diff
+
+      - name: Initialize without backend (terraform init)
+        run: |
+          terraform -chdir="${{ matrix.target }}" init -backend=false -input=false
+
+      - name: Validate configuration (terraform validate)
+        run: |
+          target="${{ matrix.target }}"
+          stub=0
+          if grep -q 'configuration_aliases.*aws\.project' "$target/versions.tf" 2>/dev/null && ! grep -q 'provider "aws"' "$target"/*.tf 2>/dev/null; then
+            cat << 'EOF' > "$target/_ci_provider.tf"
+          provider "aws" {
+            alias  = "project"
+            region = "us-east-1"
+          }
+          EOF
+            stub=1
+          fi
+          terraform -chdir="$target" validate -no-color
+          if [ "$stub" -eq 1 ]; then
+            rm -f "$target/_ci_provider.tf"
+          fi
+
+      - name: Lint module (tflint)
+        run: |
+          target="${{ matrix.target }}"
+          (cd "$target" && tflint --init 2>/dev/null || true && tflint --format compact)
+
+      - name: Security scan (Trivy)
+        uses: aquasecurity/trivy-action@a9c7b0f06e461e9d4b4d1711f154ee024b8d7ab8 # v0.36.0
+        with:
+          scan-type: config
+          scan-ref: ${{ matrix.target }}
+          exit-code: "1"
+          severity: HIGH,CRITICAL
+
+      - name: Run unit tests (terraform test)
+        run: |
+          target="${{ matrix.target }}"
+          if [ -d "$target/tests" ]; then
+            terraform -chdir="$target" test
+          else
+            echo "No tests directory in $target; skipping test suite."
+          fi

@@ -1,0 +1,13 @@
+# Infracost CLI v2 configuration for reference module sample roots.
+# Evaluates authored sizing without cloud credentials or remote state.
+version: 0.1
+projects:
+  - name: modules/network/sample
+    path: modules/network/sample
+    terraform_var_files: [terraform.tfvars]
+  - name: modules/security/sample
+    path: modules/security/sample
+    terraform_var_files: [terraform.tfvars]
+  - name: modules/inference-functions/sample
+    path: modules/inference-functions/sample
+    terraform_var_files: [terraform.tfvars]
