@@ -512,6 +512,7 @@ Full standard: TERRAFORM-IAC-BEST-PRACTICES.md at the project root.
 - `terraform fmt -recursive` and `terraform validate` both run clean.
 - Show the plan. Call out every destroy and every replacement explicitly.
 - Verify Infracost CLI v2 cost estimation delta in CI job summary (`pc-iac-027.md`).
+- Verify executable speculative plan against Floci AWS emulator without cloud credentials (`pc-iac-028.md`).
 - If validate rejects an argument, the provider is right and you are wrong.
   Read the schema. Do not guess alternative spellings.
 
@@ -562,6 +563,13 @@ Tool notes worth having:
   - **Immutability and pinning**: The Infracost CLI binary is checksum-pinned, and GitHub Actions are pinned by commit SHA.
   - **Notifications**: External chat (Slack) notifications are not required; "notify" refers to release-note templates.
   - Binding specification: `standards/iac-rules/pc-iac-027.md` (roadmap issues #31 B11, #32 B12, and #42 G02).
+- **Floci AWS emulator** serves as the plan target in lieu of a live AWS account, as accepted by the faculty advisor. It provides authentic AWS API emulation for generating speculative `terraform plan` evidence without cloud credentials or infrastructure deployment.
+  - **Image**: Pinned by digest `floci/floci@sha256:5ee85db604c4aa74ac76e07ea5cc83086f37bb472bf3dbb97e34019e48efae9c` (Floci 2.4.0).
+  - **Environment**: `AWS_ENDPOINT_URL=http://localhost:4566`, `AWS_ACCESS_KEY_ID=test`, `AWS_SECRET_ACCESS_KEY=test`, `AWS_REGION=us-east-1`. Natively honored by AWS provider v6 without Terraform code changes.
+  - **Execution**: Local Docker container or GitHub Actions service container with provider plugin caching (`TF_PLUGIN_CACHE_DIR`).
+  - **Remote state evidence**: S3 backend initialized on Floci via `aws --endpoint-url=http://localhost:4566 s3 mb` and dynamic `-backend-config` flags (`use_path_style=true`, `use_lockfile=true`).
+  - **Limits**: Plan-only boundary applies strictly; `apply` and `destroy` are never run. Docker socket warnings inside the container are harmless for plan evaluation.
+  - Binding specification: `standards/iac-rules/pc-iac-028.md` (roadmap issues #22 B02, #31 B11, #33 B13, and #44 G04).
 
 ### Academic Plan-Only Scope
 
@@ -574,7 +582,7 @@ Pipelines must nonetheless prove that the code would work if it were deployed:
 4. Automated plan-mode unit tests (`.tftest.hcl`).
 5. A reviewable speculative execution plan (`terraform plan`) and Infracost cost delta.
 
-Everything above is safe to run on a pull request. `terraform plan` against real state requires credentials, so it runs with the pipeline identity, not the agent's.
+Everything above is safe to run on a pull request. Under the academic plan-only model accepted by the faculty advisor, `terraform plan` executes against the Floci AWS emulator (`pc-iac-028.md`) using test credentials, requiring no live cloud accounts or elevated pipeline permissions.
 
 ## 21. Policy as code
 
@@ -639,7 +647,8 @@ Baseline requirements for the IaC repository created in task B01. Every referenc
 | `moved` blocks on refactor | Required | Required | Mandatory `moved` blocks for refactoring without destroy |
 | Automated cost estimation | Infracost CLI v2 | Required | PR CI and CD promotion job summary cost deltas (`pc-iac-027.md`) |
 | Academic plan-only scope | Plan-only proof | Required | Deployments, apply, and destroy prohibited; proof via validation and plan |
-| Agent rules for Terraform | Required | Required | Enforce binding rules in `AGENTS.md` and `pc-iac-001` through `pc-iac-027` |
+| AWS emulation with Floci | Floci 2.4.0 (pinned digest) | Required | Credential-free speculative plan evidence in local Docker and CI service container (`pc-iac-028.md`) |
+| Agent rules for Terraform | Required | Required | Enforce binding rules in `AGENTS.md` and `pc-iac-001` through `pc-iac-028` |
 
 Two architectural principles govern this adoption:
 

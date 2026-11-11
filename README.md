@@ -19,7 +19,8 @@ aroma-pacifico-terraform-modules/
 |-- .terraform-version                   exact Terraform patch used by local runs and CI
 |-- .tflint.hcl                          TFLint configuration for module and provider linting
 |-- infracost.yml                        Infracost project configuration for sample roots
-|-- modules/                             one directory per reference module, added by B04 to B10
+|-- modules/                             one directory per reference module, added by B02 and B04 to B10
+|   |-- state-backend/                   B02, S3 and KMS state backend of one environment
 |   |-- network/                         B04, box D04
 |   |-- collection-center-association/   B05, box D05
 |   |-- security-baseline/               B06, box D06
@@ -64,12 +65,12 @@ The repository enforces three automated workflow gates in GitHub Actions:
 | Workflow | File | Trigger | Responsibility |
 |---|---|---|---|
 | PR conventions | `.github/workflows/pr-conventions.yml` | `pull_request` (opened, edited, synchronize, reopened) | Conventional Commit PR title and commits, `<type>/<issue>-<slug>` branch naming, and strict zero-emoji mandate. |
-| Module CI | `.github/workflows/module-ci.yml` | `pull_request` to `main`, `push` to `main`, `workflow_dispatch` | Matrix validation over every module in `modules/*` and its `sample/` root. |
+| Module CI | `.github/workflows/module-ci.yml` | `pull_request` to `main`, `push` to `main`, `workflow_dispatch` | Matrix validation over every module in `modules/*` and its `sample/` root, followed by speculative plan execution against the Floci AWS emulator. |
 | Infracost cost impact | `.github/workflows/infracost.yml` | `pull_request` to `main`, `push` to `main`, `workflow_dispatch` | FinOps before/after/delta cost estimation across all sample roots using Infracost CLI v2. |
 
 ### Module CI Quality Gates
 
-Every reference module and sample root undergoes six mandatory checks:
+Every reference module and sample root undergoes seven mandatory checks:
 
 1. **Formatting**: `terraform fmt -check -diff` verifies canonical HCL indentation and styling.
 2. **Initialization**: `terraform init -backend=false -input=false` downloads required provider plugins without configuring remote state.
@@ -77,6 +78,32 @@ Every reference module and sample root undergoes six mandatory checks:
 4. **Linting**: `tflint --compact` verifies Terraform style conventions and AWS provider best practices defined in `.tflint.hcl`.
 5. **Security Scanning**: `trivy config --severity HIGH,CRITICAL` detects security misconfigurations and insecure defaults.
 6. **Unit Testing**: `terraform test` executes plan-mode assertion scenarios against mocked providers, requiring zero live cloud credentials.
+7. **Speculative Planning**: `terraform plan -lock=false` evaluates speculative execution against an ephemeral Floci AWS emulator service container pinned by digest (`floci/floci@sha256:5ee85db604c4aa74ac76e07ea5cc83086f37bb472bf3dbb97e34019e48efae9c`), using provider plugin caching (`TF_PLUGIN_CACHE_DIR`) and publishing resource action summaries to `$GITHUB_STEP_SUMMARY`.
+
+### Floci AWS Emulation for Local Speculative Plans
+
+To produce executable `terraform plan` evidence locally without an AWS account or live cloud credentials, run Floci 2.4.0 as a local emulator (PC-IAC-028):
+
+```bash
+# Start local Floci container pinned by digest
+docker run -d --rm \
+  --name floci \
+  -p 4566:4566 \
+  floci/floci@sha256:5ee85db604c4aa74ac76e07ea5cc83086f37bb472bf3dbb97e34019e48efae9c
+
+# Configure environment variables for AWS provider v6
+export AWS_ENDPOINT_URL=http://localhost:4566
+export AWS_ACCESS_KEY_ID=test
+export AWS_SECRET_ACCESS_KEY=test
+export AWS_REGION=us-east-1
+
+# Run speculative plan on a module sample
+terraform -chdir=modules/<name>/sample init -backend=false
+terraform -chdir=modules/<name>/sample plan -lock=false -out=tfplan
+
+# Inspect plan resource summary
+terraform -chdir=modules/<name>/sample show -no-color tfplan | grep -E "^Plan:"
+```
 
 ### Infracost FinOps Estimation
 
@@ -120,6 +147,9 @@ trivy config --severity HIGH,CRITICAL modules
 terraform -chdir=modules/<name> test
 terraform -chdir=modules/<name>/sample test
 
+# Speculative plan against local Floci emulator (with Floci running on port 4566)
+AWS_ENDPOINT_URL=http://localhost:4566 AWS_ACCESS_KEY_ID=test AWS_SECRET_ACCESS_KEY=test AWS_REGION=us-east-1 terraform -chdir=modules/<name>/sample plan -lock=false
+
 # Local Infracost scan (requires Infracost CLI v2 and login/token)
 infracost scan .
 ```
@@ -130,6 +160,7 @@ The `main` branch must be protected and reached only through pull requests. Enab
 
 ## Tasks delivered here
 
+- [B02](https://github.com/aroma-pacifico/aroma-pacifico-roadmap/issues/22)
 - [B04](https://github.com/aroma-pacifico/aroma-pacifico-roadmap/issues/24)
 - [B05](https://github.com/aroma-pacifico/aroma-pacifico-roadmap/issues/25)
 - [B06](https://github.com/aroma-pacifico/aroma-pacifico-roadmap/issues/26)
@@ -138,3 +169,4 @@ The `main` branch must be protected and reached only through pull requests. Enab
 - [B09](https://github.com/aroma-pacifico/aroma-pacifico-roadmap/issues/29)
 - [B10](https://github.com/aroma-pacifico/aroma-pacifico-roadmap/issues/30)
 - [G02](https://github.com/aroma-pacifico/aroma-pacifico-roadmap/issues/42)
+- [G04](https://github.com/aroma-pacifico/aroma-pacifico-roadmap/issues/44)
