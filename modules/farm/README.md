@@ -104,3 +104,12 @@ child scenarios, two root association scenarios and five isolated rejection
 fixtures. It inspects five valid JSON plan events for exactly eight identity
 creates, one farm and two node roles, with no destroys or replacements. These
 are mocked plan results, not account-plan or delivery evidence.
+
+
+## Final plan-only delivery, 2026-11-11
+
+The [sample](sample/README.md) now verifies a complete one-farm workload invocation in dev, qa and pdn. The typed B09 adapter remains synthetic because no ingestion implementation is published. The separate [production consumption template](production-template/README.md) preserves reviewed-release and shared-S3-backend governance.
+
+Policy names are validated against the IoT name character/length contract. The topic adapter accepts nonempty slash-separated ASCII namespace levels and exactly one `{thing_name}` placeholder, and rejects MQTT wildcards, unknown placeholders and empty levels. Nineteen child scenarios and three composition scenarios preserve the original CSR, node-role, environment and attachment assertions. Granular outputs remain public references only. The public CSR fixtures are test inputs, never evidence of physical private-key possession.
+
+The mandatory AWS tags cannot be applied to these IoT resource types in the pinned provider; `desired_cost_tags` is metadata, not applied AWS tags. PD-071 remains for SR2 to resolve. This limitation is not hidden by the successful plan tests. See [delivery evidence](../../docs/b08-final-delivery.md).

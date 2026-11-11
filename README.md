@@ -62,3 +62,6 @@ The `Infracost cost impact` workflow computes the monthly financial difference b
 | `INFRACOST_ORG` | Repository Variable | Infracost organization slug (e.g. `aroma-pacifico`). |
 | `INFRACOST_METADATA_EGRESS_APPROVED` | Repository Variable | Set to `true` to approve metadata queries to the Infracost pricing service. |
 
+
+
+The assigned sample root is included in `infracost.yml` under PC-IAC-027. Pricing remains a supported-resource estimate with service/usage limits; missing token or egress approval must report estimate unavailable. No zero-cost claim or cloud deployment is inferred from a green pricing job.

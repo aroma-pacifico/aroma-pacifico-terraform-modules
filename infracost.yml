@@ -11,3 +11,6 @@ projects:
   - name: modules/inference-functions/sample
     path: modules/inference-functions/sample
     terraform_var_files: [terraform.tfvars]
+  - name: modules/farm/sample
+    path: modules/farm/sample
+    terraform_var_files: [terraform.tfvars]

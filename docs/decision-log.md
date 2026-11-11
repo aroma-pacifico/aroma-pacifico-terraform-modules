@@ -19,3 +19,10 @@ new networking, application ingestion and delivery algorithms remain outside
 this module. Its message metadata labels are semantic requirements, not a new
 wire schema. The short `farm_key` in the sample is a synthetic naming input,
 not a replacement for platform farm identifiers.
+
+
+## B08 final scope clarification, 2026-11-11
+
+The B09 typed adapter is executable locally in dev/qa/pdn using synthetic references. The ASCII namespace validation is an adapter boundary, not an assertion that B09 chose that production namespace. SR2 must confirm the real adapter and reconcile PD-071 because the provider exposes no tags for the four IoT resource types.
+
+The user confirms mocked plan-only delivery and excludes all cloud provisioning. The constitution already agrees. ADR-003's account-plan CI wording and open PD-019 still need SR1/SR2 to record the mock-only evidence decision in the canonical architecture log; ASM-051's qa account-plan restriction does not turn a pdn synthetic test into an account plan. No canonical decision or acceptance criterion is rewritten here. Independent review, release publication and acceptance remain owner actions. Operational deployment and migration are outside scope, not delivery blockers.

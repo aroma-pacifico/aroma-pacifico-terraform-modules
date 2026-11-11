@@ -1,37 +1,14 @@
-# Offline root composition example
+# One-farm workload composition
 
-This sample calls one child via `source = "../"`, the local-development method
-permitted by PC-IAC-015 and PC-IAC-026. It never expands a farm inventory.
-The flow is `terraform.tfvars -> variables.tf -> locals.tf -> main.tf -> ../`.
-Resource logic exists only in the child. No data discovery is attempted because
-the ingestion module and runtime root interfaces have not been released.
+This complete local verification root invokes exactly one farm module. The `ingestion` object is the typed B09 adapter: environment, endpoint, policy name and topic template containing one `{thing_name}` placeholder. B09 has no published implementation at the delivery baseline, so `terraform.tfvars` and tests use `.invalid` endpoints and synthetic policy names. Those policies are not deployed.
 
-All values are synthetic: the endpoint uses reserved `.invalid`, policy/farm
-names are fixtures, and the CSRs contain public requests only. Temporary keys
-used to generate those test requests were deleted outside the repository.
-The empty role reference is an explicitly mock-only placeholder; do not run
-a standalone account plan or deployment from this sample.
-
-Use Terraform >= 1.14.0 and the root lockfile (AWS 6.0.0):
+The root reads the two public CSR files, constructs stable names in `locals.tf`, injects `aws.principal` as `aws.project`, and forwards the module's public outputs. Native mocked plans cover dev, qa and pdn. Each creates two things, two certificates, two principal attachments and two policy attachments: eight resources, zero updates/deletes/replacements. No buffering, firmware, hardware, network or ingestion service is implemented here.
 
 ```text
 terraform -chdir=modules/farm/sample init -backend=false -input=false
 terraform -chdir=modules/farm/sample validate
-terraform -chdir=modules/farm/sample test "-var-file=terraform.tfvars"
+terraform -chdir=modules/farm/sample test -var-file=terraform.tfvars
+python scripts/verify-farm.py
 ```
 
-Both test runs explicitly use `command = plan` with a mocked `aws.principal`.
-They do not configure an AWS identity, call AWS, create state on disk or apply.
-No backend is needed for in-memory tests. Shared-environment roots must supply
-the real provider/remote backend, reviewed ingestion contracts and a released
-module SemVer tag; no version has been invented here. Never promote the local
-source or fixture values to a shared environment.
-
-```text
-sample/
-|-- README.md
-|-- .terraform.lock.hcl
-|-- data.tf, locals.tf, main.tf, outputs.tf
-|-- providers.tf, variables.tf, versions.tf, terraform.tfvars
-`-- tests/association_unit_test.tftest.hcl
-```
+Use the approved launcher in isolated validation context, without AWS credentials. The empty role placeholder is mock-only and cannot authenticate a standalone account plan. A shared workload uses the separate [production template](../production-template/README.md), a reviewed release and the B02 S3 backend. Public CSRs are not private keys; tests do not prove possession of those keys.
