@@ -30,7 +30,7 @@ Emojis are strictly prohibited across all code, comments, documentation, commit 
 
 4. **Agent Publishing Boundary**:
    - Agents commit locally and may push only their own assigned feature branch to open a PR to `main`.
-   - Agents never push to `main`, never merge, never force-push, and never create repositories. The lead reviews and merges.
+   - Agents never push to `main`, never force-push, and never create repositories. Implementer agents never merge. The designated reviewer agent, which runs on a different AI provider than the implementer, reviews the pull request and squash-merges it when it approves and every check is green, following the review protocol. A pull request that needs a business decision, weakens CI checks or deletes out-of-scope content goes to the human lead instead. The reviewer may delete the merged head branch. The human lead can still review or merge at any time.
    - No tool attribution trailers (`Co-Authored-By` for an AI tool), generation notes or session URLs in commits or PR bodies.
 
 ---

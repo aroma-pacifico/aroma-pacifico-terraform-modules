@@ -100,8 +100,8 @@ This repository operates an adapted publishing protocol for AI agents:
 1. **Local Commits**: Agents stage and commit locally as logical units of work are completed. Incremental commits are required; do not accumulate all changes into a single bulk commit at the end.
 2. **Branch Push**: Agents may push only their own assigned feature branch (`<type>/<issue>-<slug>`) to the remote repository.
 3. **Pull Request Creation**: Agents may open a Pull Request targeting `main`.
-4. **Prohibited Actions**: Agents must **never** push directly to `main`, **never** merge a pull request, **never** execute force-push (`git push --force`), **never** delete remote branches, and **never** create remote repositories.
-5. **Human Lead Authority**: The lead reviews the PR, inspects verification output, and executes the squash merge to `main`.
+4. **Prohibited Actions**: Agents must **never** push directly to `main`, **never** execute force-push (`git push --force`), and **never** create remote repositories. Implementer agents **never** merge a pull request.
+5. **Review and Merge**: Implementer agents never merge. The designated reviewer agent, which runs on a different AI provider than the implementer, reviews the pull request and squash-merges it when it approves and every check is green, following the review protocol. A pull request that needs a business decision, weakens CI checks or deletes out-of-scope content goes to the human lead instead. The reviewer may delete the merged head branch. The human lead can still review or merge at any time.
 
 ---
 
@@ -133,9 +133,9 @@ git push -u origin <type>/<issue-number>-<slug>
 Open a Pull Request using `.github/pull_request_template.md`.
 
 ### Step 4: Squash Merge and Cleanup
-After lead review and approval:
-- The PR is squash-merged into `main` on GitHub.
-- Local working copies synchronize with trunk:
+Implementer agents never merge. The designated reviewer agent, which runs on a different AI provider than the implementer, reviews the pull request and squash-merges it when it approves and every check is green, following the review protocol. A pull request that needs a business decision, weakens CI checks or deletes out-of-scope content goes to the human lead instead. The reviewer may delete the merged head branch. The human lead can still review or merge at any time.
+
+Local working copies synchronize with trunk:
 ```bash
 git checkout main
 git pull origin main

@@ -69,7 +69,7 @@ Use `.github/pull_request_template.md` and provide:
 5. Risk and rollback considerations.
 
 ### Rules:
-1. One approval required from the lead before merging. Self-merge is prohibited.
+1. Implementer agents never merge; self-merge is prohibited. The designated reviewer agent, which runs on a different AI provider than the implementer, reviews the pull request and squash-merges it when it approves and every check is green, following the review protocol. A pull request that needs a business decision, weakens CI checks or deletes out-of-scope content goes to the human lead instead. The reviewer may delete the merged head branch. The human lead can still review or merge at any time.
 2. All CI checks must pass.
 3. Squash merge only.
 4. Never force-push a branch under review.
@@ -80,4 +80,4 @@ Use `.github/pull_request_template.md` and provide:
 
 AI agents operating in this repository adhere to [`AGENTS.md`](AGENTS.md):
 - **Plan-only academic delivery**: Agents never run `terraform apply` or `terraform destroy`, and never create live cloud resources.
-- **Publishing boundary**: Agents commit locally and may push only their own feature branch to open a PR. Agents never push directly to `main`, never merge, and never force-push.
+- **Publishing boundary**: Agents commit locally and may push only their own feature branch to open a PR. Agents never push directly to `main`, never force-push, and never create repositories. Implementer agents never merge. The designated reviewer agent, which runs on a different AI provider than the implementer, reviews the pull request and squash-merges it when it approves and every check is green, following the review protocol. A pull request that needs a business decision, weakens CI checks or deletes out-of-scope content goes to the human lead instead. The reviewer may delete the merged head branch. The human lead can still review or merge at any time.

@@ -33,7 +33,7 @@ This file is the single normative constitution for how work is produced in this 
 4. **Requirements source.** `docs/case/case-statement.pdf` is the sole source of requirements. Never invent a value, measurement, approval, or rehearsal result. Every assumption not in the case statement must be registered in the decision log (`docs/decision-log.md`) with a unique ID.
 5. **Trunk-based development.** Direct commits to `main` are prohibited. Work on short-lived branches (`<type>/<issue-number>-<kebab-slug>`) under 48 hours and under 400 lines.
 6. **Atomic Conventional Commits.** Every commit must follow `<type>(<scope>): <lowercase imperative subject>` with a mandatory `Refs #<issue>` footer. Commit incrementally as you go.
-7. **Agent publishing boundary.** Agents commit locally and may push only their own assigned feature branch to open a PR to `main`. Agents never push to `main`, never merge, never force-push, and never create repositories. The lead reviews and merges.
+7. **Agent publishing boundary.** Agents commit locally and may push only their own assigned feature branch to open a PR to `main`. Agents never push to `main`, never force-push, and never create repositories. Implementer agents never merge. The designated reviewer agent, which runs on a different AI provider than the implementer, reviews the pull request and squash-merges it when it approves and every check is green, following the review protocol. A pull request that needs a business decision, weakens CI checks or deletes out-of-scope content goes to the human lead instead. The reviewer may delete the merged head branch. The human lead can still review or merge at any time.
 8. **Repository model.** Concern separation across dedicated organization repositories. Terraform code (`.tf`) belongs strictly in `aroma-pacifico-terraform-modules` and `aroma-pacifico-infrastructure`; no `.tf` files in any other repository.
 9. **Binding IaC rules.** The 26 reference module rules in `standards/iac-rules/` (`pc-iac-001.md` through `pc-iac-026.md`) and `standards/terraform-iac-best-practices.md` are binding for all Terraform work. Renaming a resource requires a `moved` block.
 10. **Show your verification.** "Done" requires running formatting, validation, and verification checks and showing the actual terminal output. Never state something works without showing the verification evidence.
@@ -173,8 +173,8 @@ Refs #<issue-number>
 - **Agents commit locally**: Local commits are expected as work progresses.
 - **Feature branch push**: Agents may push only their own assigned feature branch (`<type>/<issue>-<slug>`) to the remote repository.
 - **Pull Request creation**: Agents may open a Pull Request targeting `main`.
-- **Prohibited agent actions**: Agents must never push directly to `main`, never merge PRs, never force-push (`git push --force`), never delete remote branches, and never create repositories.
-- **Review and merge**: The lead reviews the PR, inspects verification output, and executes the squash merge.
+- **Prohibited agent actions**: Agents must never push directly to `main`, never force-push (`git push --force`), and never create repositories. Implementer agents never merge.
+- **Review and merge**: The designated reviewer agent, which runs on a different AI provider than the implementer, reviews the pull request and squash-merges it when it approves and every check is green, following the review protocol. A pull request that needs a business decision, weakens CI checks or deletes out-of-scope content goes to the human lead instead. The reviewer may delete the merged head branch. The human lead can still review or merge at any time.
 
 ---
 
@@ -260,7 +260,7 @@ A task is not done until every applicable criterion is satisfied and verificatio
 |---|---|
 | Run `terraform apply` or `terraform destroy` | Academic delivery is strictly plan-only (§4). |
 | Direct commit to `main` | Trunk-based development requires PRs (§6.1). |
-| Force-push (`git push --force`) or merge own PR | Agents never force-push; lead reviews and merges (§6.5). |
+| Force-push (`git push --force`) or merge as implementer | Agents never force-push; implementer agents never merge; designated reviewer agent reviews and merges (§6.5). |
 | Use emojis anywhere | Strict Zero-Emoji mandate (§2). |
 | Invent values, measurements, or approvals | All requirements originate from `docs/case/case-statement.pdf` (§3). |
 | Rename Terraform resource without `moved` block | Renaming in-place causes a destroy and recreate (§8). |

@@ -20,7 +20,7 @@ Specialized skill for managing source control, branch lifecycles, and commit hyg
 4. **Short-Lived Branches (SLB)**: Feature branches must have a lifespan under 48 hours and diffs under 400 lines where possible.
 5. **Continuous, Atomic Commits**: As files and logical units are modified or created, stage and commit them immediately. Do not defer all commits to the end of the session.
 6. **Strict Conventional Commits**: `<type>(<scope>): <lowercase imperative subject>`. Headers must not exceed 72 characters, must not end with a period, and must not contain emojis. A `Refs #<issue>` footer is mandatory.
-7. **Agent Publishing Boundary**: Agents commit locally as work proceeds and may push only their own feature branch to open a PR. Agents never push to `main`, never merge, never force-push, and never create repositories. The lead reviews and merges.
+7. **Agent Publishing Boundary**: Agents commit locally as work proceeds and may push only their own feature branch to open a PR. Agents never push to `main`, never force-push, and never create repositories. Implementer agents never merge. The designated reviewer agent, which runs on a different AI provider than the implementer, reviews the pull request and squash-merges it when it approves and every check is green, following the review protocol. A pull request that needs a business decision, weakens CI checks or deletes out-of-scope content goes to the human lead instead. The reviewer may delete the merged head branch. The human lead can still review or merge at any time.
 8. **All English**: All commit messages, branch names, PR descriptions, and agent communications must be in English.
 
 ---
@@ -38,7 +38,7 @@ flowchart TD
     F -->|More changes in task?| D
     F -->|Task complete| G["Verify clean git status"]
     G --> H["Push feature branch: git push -u origin branch"]
-    H --> I["Open PR for Lead Review & Squash Merge"]
+    H --> I["Open PR for Reviewer Agent Review & Squash Merge"]
 ```
 
 ---
