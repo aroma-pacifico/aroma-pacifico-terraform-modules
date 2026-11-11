@@ -8,13 +8,16 @@ mock_provider "aws" {
 }
 
 variables {
-  transit_gateway_id                   = "tgw-0123456789abcdef0"
-  collection_center_summary_cidr_block = "10.40.0.0/13"
-  client                               = "fx"
-  project                              = "cf"
-  environment                          = "pdn"
-  name_prefix                          = "fx-cf-pdn"
-  vpc_cidr_block                       = "10.82.0.0/16"
+  collection_center_firewall_cidr_blocks       = { cauca = "10.41.20.1/32", huila = "10.42.20.1/32", tolima = "10.43.20.1/32" }
+  collection_center_ground_station_cidr_blocks = { cauca = "10.41.2.10/32", huila = "10.42.2.10/32", tolima = "10.43.2.10/32" }
+  data_store_ports                             = [5432]
+  transit_gateway_id                           = "tgw-0123456789abcdef0"
+  collection_center_summary_cidr_block         = "10.40.0.0/13"
+  client                                       = "fx"
+  project                                      = "cf"
+  environment                                  = "pdn"
+  name_prefix                                  = "fx-cf-pdn"
+  vpc_cidr_block                               = "10.82.0.0/16"
   collection_center_cidr_blocks = {
     cauca  = "10.41.0.0/16"
     huila  = "10.42.0.0/16"
@@ -209,4 +212,99 @@ run "bad_transit_gateway_id_is_rejected" {
   }
 
   expect_failures = [var.transit_gateway_id]
+}
+
+run "acls_follow_the_firewall_policy" {
+  command = plan
+
+  assert {
+    condition     = length(aws_network_acl.this) == 8 && length(output.network_acl_ids) == 8
+    error_message = "The plan must create one network ACL per tier."
+  }
+
+  assert {
+    condition = alltrue([
+      for tier in ["public_query", "telemetry_ingress", "drone_object_ingress", "application", "data", "object_storage", "administration", "transit"] :
+      aws_network_acl_rule.this["${tier}-ingress-final"].rule_action == "deny" && aws_network_acl_rule.this["${tier}-egress-final"].rule_action == "deny" && aws_network_acl_rule.this["${tier}-egress-final"].rule_number == 32766
+    ])
+    error_message = "Every tier must end with an explicit deny in both directions (CL-DEF-01)."
+  }
+
+  assert {
+    condition     = length([for key, rule in aws_network_acl_rule.this : key if startswith(key, "telemetry_ingress-")]) == 2
+    error_message = "telemetry_ingress must hold only its two final denies (CL-TEL-04)."
+  }
+
+  assert {
+    condition     = aws_network_acl_rule.this["public_query-ingress-0"].cidr_block == "0.0.0.0/0" && aws_network_acl_rule.this["public_query-ingress-0"].from_port == 443 && aws_network_acl_rule.this["public_query-egress-0"].from_port == 1024
+    error_message = "public_query must allow inbound 443 and outbound 1024 to 65535 only (CL-PUB-04)."
+  }
+
+  assert {
+    condition     = aws_network_acl_rule.this["application-ingress-0"].cidr_block == "10.40.0.0/13" && aws_network_acl_rule.this["application-ingress-1"].cidr_block == "10.82.0.0/16" && aws_network_acl_rule.this["application-egress-2"].cidr_block == "0.0.0.0/0" && aws_network_acl_rule.this["application-egress-2"].from_port == 443
+    error_message = "application must follow CL-APP-03, including the outbound 443 exception."
+  }
+
+  assert {
+    condition     = toset([for key, rule in aws_network_acl_rule.this : rule.cidr_block if startswith(key, "object_storage-ingress-") && rule.from_port == 443]) == toset(["10.41.2.10/32", "10.42.2.10/32", "10.43.2.10/32", "10.82.0.0/16"])
+    error_message = "object_storage must accept 443 only from the ground stations and the VPC (CL-DRN-04)."
+  }
+
+  assert {
+    condition     = aws_network_acl_rule.this["data-ingress-0"].rule_action == "deny" && aws_network_acl_rule.this["data-ingress-0"].rule_number == 100 && aws_network_acl_rule.this["data-ingress-0"].cidr_block == "10.40.0.0/13" && aws_network_acl_rule.this["data-ingress-1"].from_port == 5432
+    error_message = "data must deny every center at the lowest rule number and then allow the application tier on the store port (CL-DAT-01, CL-DAT-02)."
+  }
+
+  assert {
+    condition     = toset([for key, rule in aws_network_acl_rule.this : rule.cidr_block if startswith(key, "administration-ingress-") && rule.from_port == 53]) == toset(["10.41.20.1/32", "10.42.20.1/32", "10.43.20.1/32"]) && aws_network_acl_rule.this["administration-egress-6"].from_port == 22
+    error_message = "administration must follow CL-ADM-04."
+  }
+
+  assert {
+    condition     = alltrue([for key, rule in aws_network_acl_rule.this : rule.rule_action == "deny" || rule.egress || rule.cidr_block != "0.0.0.0/0" || rule.from_port == 1024 || key == "public_query-ingress-0"])
+    error_message = "Only public_query may accept new inbound connections from anywhere; other tiers accept only returns above 1023."
+  }
+}
+
+run "empty_store_ports_leave_the_data_tier_denying" {
+  command = plan
+
+  variables {
+    data_store_ports = []
+  }
+
+  assert {
+    condition     = length([for key, rule in aws_network_acl_rule.this : key if startswith(key, "data-ingress-") && rule.rule_action == "allow"]) == 0
+    error_message = "Without store ports the data tier must allow nothing inbound."
+  }
+}
+
+run "firewall_that_is_not_a_host_address_is_rejected" {
+  command = plan
+
+  variables {
+    collection_center_firewall_cidr_blocks = { cauca = "10.41.20.0/24", huila = "10.42.20.1/32", tolima = "10.43.20.1/32" }
+  }
+
+  expect_failures = [var.collection_center_firewall_cidr_blocks]
+}
+
+run "ground_station_for_an_unknown_center_is_rejected" {
+  command = plan
+
+  variables {
+    collection_center_ground_station_cidr_blocks = { cauca = "10.41.2.10/32", huila = "10.42.2.10/32", boyaca = "10.44.2.10/32" }
+  }
+
+  expect_failures = [var.collection_center_ground_station_cidr_blocks]
+}
+
+run "invalid_store_port_is_rejected" {
+  command = plan
+
+  variables {
+    data_store_ports = [70000]
+  }
+
+  expect_failures = [var.data_store_ports]
 }
