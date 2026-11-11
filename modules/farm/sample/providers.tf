@@ -2,8 +2,11 @@
 provider "aws" {
   alias  = "principal"
   region = var.region
-  assume_role {
-    role_arn = var.plan_role_arn
+  dynamic "assume_role" {
+    for_each = var.plan_role_arn == "" ? [] : [var.plan_role_arn]
+    content {
+      role_arn = assume_role.value
+    }
   }
   default_tags {
     tags = local.common_tags
