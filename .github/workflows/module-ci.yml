@@ -93,7 +93,7 @@ jobs:
       - name: Lint module (tflint)
         run: |
           target="${{ matrix.target }}"
-          (cd "$target" && tflint --init 2>/dev/null || true && tflint --compact)
+          (cd "$target" && tflint --init 2>/dev/null || true && tflint --format compact)
 
       - name: Security scan (Trivy)
         uses: aquasecurity/trivy-action@a9c7b0f06e461e9d4b4d1711f154ee024b8d7ab8 # v0.36.0
