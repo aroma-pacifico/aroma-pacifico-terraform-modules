@@ -26,3 +26,6 @@ __pycache__/
 .vscode/
 .DS_Store
 __MACOSX/
+
+# Reference modules never commit a provider lock file (best practices section 8)
+.terraform.lock.hcl
