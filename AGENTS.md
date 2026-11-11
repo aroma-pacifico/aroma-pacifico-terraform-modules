@@ -29,13 +29,13 @@ This file is the single normative constitution for how work is produced in this 
 
 1. **English only.** Code, comments, documentation, commits, PR titles and bodies, branch names, file names, directory names. No exceptions.
 2. **Zero emojis.** Strictly prohibited across all commits, branches, PRs, documentation, code, and agent responses.
-3. **Academic delivery: plan-only.** Deliver design, modular Terraform, cost evidence, and a presentation. Never run `terraform apply`/`destroy`, never deploy, never register providers, and never create live cloud resources.
+3. **Academic delivery: plan-only.** Deliver design, modular Terraform, cost evidence, and a presentation. As confirmed by the faculty advisor, the project stops at `terraform plan`. Never run `terraform apply`/`destroy`, never deploy, never register providers, and never create live cloud resources. Pipelines must still prove that code would work if deployed: formatting, validation, tests, security scans, and a reviewable plan.
 4. **Requirements source.** `docs/case/case-statement.pdf` is the sole source of requirements. Never invent a value, measurement, approval, or rehearsal result. Every assumption not in the case statement must be registered in the decision log (`docs/decision-log.md`) with a unique ID.
 5. **Trunk-based development.** Direct commits to `main` are prohibited. Work on short-lived branches (`<type>/<issue-number>-<kebab-slug>`) under 48 hours and under 400 lines.
 6. **Atomic Conventional Commits.** Every commit must follow `<type>(<scope>): <lowercase imperative subject>` with a mandatory `Refs #<issue>` footer. Commit incrementally as you go.
 7. **Agent publishing boundary.** Agents commit locally and may push only their own assigned feature branch to open a PR to `main`. Agents never push to `main`, never force-push, and never create repositories. Implementer agents never merge. The designated reviewer agent, which runs on a different AI provider than the implementer, reviews the pull request and squash-merges it when it approves and every check is green, following the review protocol. A pull request that needs a business decision, weakens CI checks or deletes out-of-scope content goes to the human lead instead. The reviewer may delete the merged head branch. The human lead can still review or merge at any time.
 8. **Repository model.** Concern separation across dedicated organization repositories. Terraform code (`.tf`) belongs strictly in `aroma-pacifico-terraform-modules` and `aroma-pacifico-infrastructure`; no `.tf` files in any other repository.
-9. **Binding IaC rules.** The 26 reference module rules in `standards/iac-rules/` (`pc-iac-001.md` through `pc-iac-026.md`) and `standards/terraform-iac-best-practices.md` are binding for all Terraform work. Renaming a resource requires a `moved` block.
+9. **Binding IaC rules.** The 27 reference module rules in `standards/iac-rules/` (`pc-iac-001.md` through `pc-iac-027.md`) and `standards/terraform-iac-best-practices.md` are binding for all Terraform work. Renaming a resource requires a `moved` block. Automated Infracost cost estimation in CI/CD pipelines is mandatory per `pc-iac-027.md`.
 10. **Show your verification.** "Done" requires running formatting, validation, and verification checks and showing the actual terminal output. Never state something works without showing the verification evidence.
 
 ---
@@ -76,7 +76,8 @@ Emojis are strictly prohibited across all surfaces. All communication and artifa
 
 This project is an academic DevOps challenge representing the 2026 update of a coffee traceability pilot across Cauca, Huila, and Tolima.
 - **Scope**: High-level design, reusable modular Terraform, cost forecasts/evidence, and presentation materials.
-- **Plan-only boundary**: No live cloud platform or running application is required.
+- **Plan-only boundary**: As confirmed by the faculty advisor, the project stops at `terraform plan`. Nothing is deployed and no cloud resource is created; `terraform apply` and `terraform destroy` are never run.
+- **Pipeline proof of deployability**: Pipelines must nonetheless prove that the code would work if deployed, executing formatting checks, schema validation (`terraform validate`), linting, security scans, native plan-mode unit tests (`.tftest.hcl`), reviewable speculative plans, and automated Infracost cost estimates.
 - **Prohibited cloud mutations**:
   - Never run `terraform apply` or `terraform destroy`
   - Never run `kubectl apply`, `helm install`, or cloud resource creation commands
@@ -197,7 +198,7 @@ Use `.github/pull_request_template.md`:
 ## 8. Terraform and Infrastructure as Code
 
 Detailed standards live in `standards/terraform-iac-best-practices.md` and `standards/iac-rules/`.
-The 26 `pc-iac` rules (`standards/iac-rules/pc-iac-001.md` through `pc-iac-026.md`) are binding for every Terraform change.
+The 27 `pc-iac` rules (`standards/iac-rules/pc-iac-001.md` through `pc-iac-027.md`) are binding for every Terraform change.
 
 ### Key Enforceable Rules:
 - **Reference modules**: Follow the mandatory layout defined in `pc-iac-001.md` (`main.tf`, `variables.tf`, `outputs.tf`, `versions.tf`, `README.md`).
@@ -210,6 +211,8 @@ The 26 `pc-iac` rules (`standards/iac-rules/pc-iac-001.md` through `pc-iac-026.m
 - **Secrets**: Mark secret variables with `sensitive = true` (`pc-iac-016.md`). Never commit plaintext secrets.
 - **Domain separation**: Separate networking, compute, security, and data into distinct lifecycle domains (`pc-iac-022.md`).
 - **Testing**: Plan-mode unit tests (`.tftest.hcl`) for reference modules (`pc-iac-018.md`).
+- **Automated cost estimation (`pc-iac-027.md`)**: Every IaC pipeline (PR CI and CD promotion with production approval) estimates monthly cost with Infracost CLI v2. Publishes before, after, and delta breakdowns for each root in the job summary, and production approvals display cost next to the plan. Uses secret `INFRACOST_CLI_TOKEN` passed as `INFRACOST_CLI_AUTHENTICATION_TOKEN`, with variables `INFRACOST_ORG=aroma-pacifico` and `INFRACOST_METADATA_EGRESS_APPROVED=true`. Legacy `ico-` keys are rejected. Needs no cloud credentials; missing token outputs "estimate unavailable". Checksum-pinned CLI and SHA-pinned actions. Slack notifications are not required.
+- **Plan-only scope and pipeline proof**: As confirmed by the professor, the project stops at `terraform plan`. Nothing is deployed and no cloud resource is created; `apply` and `destroy` are never run. Pipelines prove code correctness via formatting, validation, tests (`.tftest.hcl`), security scans, and reviewable speculative plans.
 - **Identity separation**: Agents operate with plan-only identity; apply is strictly prohibited (§4).
 
 ---
@@ -243,6 +246,7 @@ A task is not done until every applicable criterion is satisfied and verificatio
 - [ ] `tflint` clean.
 - [ ] Security scanners (`trivy`/`checkov`) clean or findings justified.
 - [ ] Plan-only evidence produced; destroys and replacements explicitly called out.
+- [ ] Infracost CLI v2 cost estimation delta published to job summary (`pc-iac-027.md`).
 - [ ] `moved` blocks present for any relocated or renamed resource.
 
 **Documentation and Diagram Changes:**
