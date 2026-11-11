@@ -37,9 +37,9 @@ Center firewall rules (CC rows) are device configuration and are not coded in Te
 | `application_cidr_blocks`, `data_store_ports` | `list` | Sources and ports admitted by the data store group (CL-DAT-02). |
 | `api_endpoint`, `drone_object_endpoint` | `object` or `null` | Endpoint IDs and the ARNs their policies admit. Null attaches no policy. |
 | `enable_cloudfront_origin_rule` | `bool` | Creates the load balancer group of CL-PUB-03. Default `false`. |
-| `waf_scope` | `string` | `CLOUDFRONT` or `REGIONAL`. |
+| `waf_scope` | `string` | `CLOUDFRONT` or `REGIONAL`. One value applies to both web ACLs (see the open points). |
 | `lookup_allowed_path_prefixes`, `lookup_rate_scope_path`, `lookup_rate_limit` | `list`, `string`, `number` | Allowed paths, rate scope and the per-IP limit of the public lookup (ASM-155: 100 in 5 minutes on `/s/`). |
-| `api_rate_limit` | `number` | Per-IP limit of the API front door. The design gives no value (see the open point below). |
+| `api_rate_limit` | `number` | Per-IP limit in 5 minutes of the API front door. No default: the root supplies it (ASM-300 registers 1,000 requests per source IP). |
 | `temporary_rules` | `map(object)` | Temporary ingress rules, each with a rule ID, a source prefix list and a removal condition. Default empty. |
 
 | Output | Meaning |
@@ -63,15 +63,17 @@ The `collection_centers` input lists the guest and transporter blocks of each ce
 | Rule | Exception | Reason |
 |---|---|---|
 | PC-IAC-003 | The WAF metric names repeat the name prefix and a short rule key. | AWS WAF requires a metric name per rule; they stay under the 28 character cap of physical names except where AWS allows up to 128. |
-| PC-IAC-020 | The WAF web ACLs have no logging configuration. | Logging needs a destination owned by the security stack (`logs` key); the root adds it when that stack publishes it. |
+| PC-IAC-020 | The WAF web ACLs have no logging configuration. | The module has no input to log the web ACLs to a destination encrypted with the `logs` key. This is a module limitation, not a choice of the root (PD-300, see the open points). |
 
 ## Open points
 
 | Point | State |
 |---|---|
-| Rate limit of the API front door | The architecture gives managed groups and "a rate-based rule" for CL-TEL-03 but no threshold. The root supplies `api_rate_limit`; the value must be logged as an assumption in the architecture decision log before the stack uses it. |
-| PD-051 (load balancer in front of the lookup) | Decides `enable_cloudfront_origin_rule`. |
+| Rate limit of the API front door | Closed. The threshold is registered as ASM-300 (1,000 requests per source IP in 5 minutes). The root supplies `api_rate_limit` and the stack passes it. |
+| PD-051 (load balancer in front of the lookup) | Closed. The lookup front door is CloudFront with no load balancer, so `enable_cloudfront_origin_rule` stays `false` by decision, not because the point is open. |
 | PD-123 (management session host) | The module creates only the host's security group, not the host. |
+| One `waf_scope` for both web ACLs (PD-300) | The single input feeds the lookup and the API web ACL. The lookup ACL is CloudFront scope, but the platform API front door is an API Gateway custom domain, which takes a `REGIONAL` web ACL. Until the module accepts a scope per ACL, a root that serves the lookup through CloudFront plans the API ACL at CloudFront scope too. |
+| No logging input for the web ACLs (PD-300) | The module has no input to send the web ACL logs to a destination encrypted with the `logs` key (PC-IAC-020). The exception table above records it, and the web ACLs plan without a logging configuration. |
 
 ## Verification
 
