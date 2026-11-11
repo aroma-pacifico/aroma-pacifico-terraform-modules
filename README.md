@@ -15,8 +15,10 @@ This repository is plan-only: nothing here may run `terraform apply` or `terrafo
 ```text
 aroma-pacifico-terraform-modules/
 |-- .github/
-|   `-- workflows/                       pr-conventions.yml now; the module CI is added with the first module
+|   `-- workflows/                       pr-conventions.yml, module-ci.yml, and infracost.yml
 |-- .terraform-version                   exact Terraform patch used by local runs and CI
+|-- .tflint.hcl                          TFLint configuration for module and provider linting
+|-- infracost.yml                        Infracost project configuration for sample roots
 |-- modules/                             one directory per reference module, added by B04 to B10
 |   |-- network/                         B04, box D04
 |   |-- collection-center-association/   B05, box D05
@@ -28,7 +30,7 @@ aroma-pacifico-terraform-modules/
 `-- standards/                           distributed engineering standards
 ```
 
-Only `modules/.gitkeep` exists today; each module directory is created by the task that codes it. Each module follows the layout of pc-iac-001, with a `sample/` directory and plan-mode tests under `tests/`, and has no `provider` or `backend` block.
+Reference modules follow the layout of pc-iac-001, each containing a `sample/` directory and plan-mode tests under `tests/`. Child modules declare no `provider` or `backend` block.
 
 ## Versioning and consumption
 
@@ -47,14 +49,57 @@ The tag in the example is illustrative; no tag exists yet. Reference modules do 
 | Tool | Version | Notes |
 |---|---|---|
 | Terraform | 1.15.8, pinned in `.terraform-version` | Modules require `>= 1.14.0`; CI and local runs use the exact patch recorded here. |
+| TFLint | 0.55.0 or later | Lints HCL syntax and AWS provider conventions using `.tflint.hcl`. |
+| Trivy | 0.36.0 or later | Static security scanner for Terraform misconfigurations. |
+| Infracost | 2.18.3, checksum-pinned in CI | FinOps CLI v2 for source-level monthly cost estimation. |
 | Git | Any recent release | Branches follow `<type>/<issue-number>-<slug>`; commits follow Conventional Commits. |
-| GitHub CLI | Any recent release | Needed to open pull requests. |
+| GitHub CLI | Any recent release | Needed to open pull requests and inspect checks. |
 
 No cloud credentials are needed and none may ever be configured for this repository. Module CI runs on mock providers.
 
+## Continuous Integration and Quality Gates
+
+The repository enforces three automated workflow gates in GitHub Actions:
+
+| Workflow | File | Trigger | Responsibility |
+|---|---|---|---|
+| PR conventions | `.github/workflows/pr-conventions.yml` | `pull_request` (opened, edited, synchronize, reopened) | Conventional Commit PR title and commits, `<type>/<issue>-<slug>` branch naming, and strict zero-emoji mandate. |
+| Module CI | `.github/workflows/module-ci.yml` | `pull_request` to `main`, `push` to `main`, `workflow_dispatch` | Matrix validation over every module in `modules/*` and its `sample/` root. |
+| Infracost cost impact | `.github/workflows/infracost.yml` | `pull_request` to `main`, `push` to `main`, `workflow_dispatch` | FinOps before/after/delta cost estimation across all sample roots using Infracost CLI v2. |
+
+### Module CI Quality Gates
+
+Every reference module and sample root undergoes six mandatory checks:
+
+1. **Formatting**: `terraform fmt -check -diff` verifies canonical HCL indentation and styling.
+2. **Initialization**: `terraform init -backend=false -input=false` downloads required provider plugins without configuring remote state.
+3. **Validation**: `terraform validate` verifies syntax and resource configuration consistency. Child modules declaring `configuration_aliases = [aws.project]` (PC-IAC-005) receive a temporary local provider stub during standalone validation.
+4. **Linting**: `tflint --compact` verifies Terraform style conventions and AWS provider best practices defined in `.tflint.hcl`.
+5. **Security Scanning**: `trivy config --severity HIGH,CRITICAL` detects security misconfigurations and insecure defaults.
+6. **Unit Testing**: `terraform test` executes plan-mode assertion scenarios against mocked providers, requiring zero live cloud credentials.
+
+### Infracost FinOps Estimation
+
+The `Infracost cost impact` workflow computes the monthly financial difference between the base revision and the incoming change:
+
+- **Checksum-Pinned CLI**: Runs Infracost CLI v2.18.3 verified with SHA-256 (`0950674d6e19eee5c492e59b415f3078c7c6b72421f940543c6cfa884692874e`).
+- **Sample Root Evaluation**: Scans all `sample/` roots declared in `infracost.yml` using synthetic input profiles (`terraform.tfvars`).
+- **Summary Publication**: Publishes a comparative Before, After, and Delta monthly cost breakdown per sample root to `$GITHUB_STEP_SUMMARY`.
+- **Zero Credentials and No Deployments**: Never touches AWS, never runs `terraform apply`, and never creates cloud resources.
+- **Graceful Token Handling**: When the repository secret `INFRACOST_CLI_TOKEN` or repository variables `INFRACOST_ORG` and `INFRACOST_METADATA_EGRESS_APPROVED` (`true`) are not present, the job outputs an explicit estimate unavailable notice and passes without claiming numbers.
+- **Untrusted PR Protection**: Forks and Dependabot contributions are prevented from accessing pricing secrets, publishing an explanation notice instead.
+
+### Required Secrets and Variables
+
+| Name | Type | Purpose |
+|---|---|---|
+| `INFRACOST_CLI_TOKEN` | Repository Secret | Infracost CLI v2 organization authentication token. |
+| `INFRACOST_ORG` | Repository Variable | Infracost organization slug (e.g. `aroma-pacifico`). |
+| `INFRACOST_METADATA_EGRESS_APPROVED` | Repository Variable | Set to `true` to approve metadata queries to the Infracost pricing service. |
+
 ## Base commands
 
-Run from the repository root, once a module exists.
+Run from the repository root to verify modules locally.
 
 ```bash
 # Format check across every module
@@ -64,8 +109,19 @@ terraform fmt -check -recursive
 terraform -chdir=modules/<name>/sample init -backend=false
 terraform -chdir=modules/<name>/sample validate
 
+# Lint with TFLint
+tflint --init
+tflint --recursive
+
+# Static security scan with Trivy
+trivy config --severity HIGH,CRITICAL modules
+
 # Plan-mode unit tests with mock providers
 terraform -chdir=modules/<name> test
+terraform -chdir=modules/<name>/sample test
+
+# Local Infracost scan (requires Infracost CLI v2 and login/token)
+infracost scan .
 ```
 
 ## Branch protection
@@ -81,3 +137,4 @@ The `main` branch must be protected and reached only through pull requests. Enab
 - [B08](https://github.com/aroma-pacifico/aroma-pacifico-roadmap/issues/28)
 - [B09](https://github.com/aroma-pacifico/aroma-pacifico-roadmap/issues/29)
 - [B10](https://github.com/aroma-pacifico/aroma-pacifico-roadmap/issues/30)
+- [G02](https://github.com/aroma-pacifico/aroma-pacifico-roadmap/issues/42)
