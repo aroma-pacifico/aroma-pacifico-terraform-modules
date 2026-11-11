@@ -1,26 +1,62 @@
-# Aroma Pacifico Terraform modules
+# aroma-pacifico-terraform-modules
 
-This public repository holds reusable modules. Roots belong in [infrastructure](https://github.com/aroma-pacifico/aroma-pacifico-infrastructure). Governance and standards are synchronized from ai-agents and are never edited here.
+Reusable Terraform reference modules for the Aroma Pacífico pilot, consumed by git tag (pc-iac-015). Public: never commit account identifiers, ARNs or real data
 
-Reviewed main contains `network`, `security` and `inference-functions`. This feature branch adds [state-backend](modules/state-backend/README.md). Other owners' reviewed modules remain unchanged. Each module has its required source files, native plan tests, and a complete local `sample/` root; this branch also contains `scripts/` verification and `docs/b02-final-delivery.md` evidence.
+Part of the Aroma Pacífico pilot, the 2026 update of the coffee traceability pilot for Cauca, Huila and Tolima. Work is tracked in [aroma-pacifico-roadmap](https://github.com/aroma-pacifico/aroma-pacifico-roadmap) and on the [Aroma Pacífico Pilot board](https://github.com/orgs/aroma-pacifico/projects/1).
 
-Terraform 1.15.8 is recorded in `.terraform-version`; modules require at least 1.14.0 and AWS 6.0.0. Children declare provider aliases without configuring providers or backends. Sample roots inject those aliases, pin the tested provider and own their lockfiles.
+## What lives here
+
+This public repository holds reusable, versioned Terraform reference modules for the Aroma Pacífico pilot, consumed by git tag according to pc-iac-015. Modules strictly declare neither provider nor backend configurations and accept a `name_prefix` input. Because this repository is public, no account identifiers, account-qualified ARNs, internal hostnames, real endpoints, credentials, named principals, or client data are ever committed. Distributed AI agent rules and standards are synchronized here from the canonical `aroma-pacifico-ai-agents` repository.
+
+This repository is plan-only: nothing here may run `terraform apply` or `terraform destroy`, or create a live resource (AGENTS.md section 4).
+
+## Repository layout
 
 ```text
-terraform fmt -check -recursive
-terraform -chdir=modules/state-backend init -backend=false -input=false
-terraform -chdir=modules/state-backend test
-terraform -chdir=modules/state-backend/sample init -backend=false -input=false
-terraform -chdir=modules/state-backend/sample validate
-terraform -chdir=modules/state-backend/sample test
+aroma-pacifico-terraform-modules/
+|-- .github/
+|   `-- workflows/                       pr-conventions.yml, module-ci.yml, and infracost.yml
+|-- .terraform-version                   exact Terraform patch used by local runs and CI
+|-- .tflint.hcl                          TFLint configuration for module and provider linting
+|-- infracost.yml                        Infracost project configuration for sample roots
+|-- modules/                             one directory per reference module, added by B02 and B04 to B10
+|   |-- state-backend/                   B02, S3 and KMS state backend of one environment
+|   |-- network/                         B04, box D04
+|   |-- collection-center-association/   B05, box D05
+|   |-- security-baseline/               B06, box D06
+|   |-- firewall-rules/                  B07, box D07
+|   |-- farm/                            B08, box D08
+|   |-- telemetry-ingestion/             B09, box D09
+|   `-- inference-function/              B10, box D10
+`-- standards/                           distributed engineering standards
 ```
 
-Use the approved launcher in isolated validation context without AWS credentials. B08's sample also takes `-var-file=terraform.tfvars`; additional steps are in each module README. Every resource plan is **OFFLINE MOCKED TERRAFORM PLAN**. No account plan, cloud operation or persistent state is claimed.
+Reference modules follow the layout of pc-iac-001, each containing a `sample/` directory and plan-mode tests under `tests/`. Child modules declare no `provider` or `backend` block.
 
-Shared consumption requires a genuine reviewed SemVer git tag. None is published or invented. Local sources are restricted to verification fixtures; production templates retain their release gates. Independent review, acceptance, releases and main protection remain lead/reviewer actions. Implementers do not merge.
+## Versioning and consumption
 
-See [final evidence](docs/b02-final-delivery.md), [AGENTS.md](AGENTS.md), [Contributing](CONTRIBUTING.md) and [standards](standards/terraform-iac-best-practices.md).
+One SemVer git tag (`vX.Y.Z`) covers the whole repository and is created after each merged module part (ADR-003). A root stack in [aroma-pacifico-infrastructure](https://github.com/aroma-pacifico/aroma-pacifico-infrastructure) pins one tag for all modules and never references a branch or a commit.
 
+```hcl
+module "network" {
+  source = "git::https://github.com/aroma-pacifico/aroma-pacifico-terraform-modules.git//modules/network?ref=v0.1.0"
+}
+```
+
+The tag in the example is illustrative; no tag exists yet. Reference modules do not commit `.terraform.lock.hcl`, because a lock file only has meaning in a root stack.
+
+## Prerequisites
+
+| Tool | Version | Notes |
+|---|---|---|
+| Terraform | 1.15.8, pinned in `.terraform-version` | Modules require `>= 1.14.0`; CI and local runs use the exact patch recorded here. |
+| TFLint | 0.55.0 or later | Lints HCL syntax and AWS provider conventions using `.tflint.hcl`. |
+| Trivy | 0.36.0 or later | Static security scanner for Terraform misconfigurations. |
+| Infracost | 2.18.3, checksum-pinned in CI | FinOps CLI v2 for source-level monthly cost estimation. |
+| Git | Any recent release | Branches follow `<type>/<issue-number>-<slug>`; commits follow Conventional Commits. |
+| GitHub CLI | Any recent release | Needed to open pull requests and inspect checks. |
+
+No cloud credentials are needed and none may ever be configured for this repository. Module CI runs on mock providers.
 
 ## Continuous Integration and Quality Gates
 
@@ -62,6 +98,45 @@ The `Infracost cost impact` workflow computes the monthly financial difference b
 | `INFRACOST_ORG` | Repository Variable | Infracost organization slug (e.g. `aroma-pacifico`). |
 | `INFRACOST_METADATA_EGRESS_APPROVED` | Repository Variable | Set to `true` to approve metadata queries to the Infracost pricing service. |
 
+## Base commands
 
+Run from the repository root to verify modules locally.
 
-The assigned sample root is included in `infracost.yml` under PC-IAC-027. Pricing remains a supported-resource estimate with service/usage limits; missing token or egress approval must report estimate unavailable. No zero-cost claim or cloud deployment is inferred from a green pricing job.
+```bash
+# Format check across every module
+terraform fmt -check -recursive
+
+# Validate one module through its sample root, without touching state
+terraform -chdir=modules/<name>/sample init -backend=false
+terraform -chdir=modules/<name>/sample validate
+
+# Lint with TFLint
+tflint --init
+tflint --recursive
+
+# Static security scan with Trivy
+trivy config --severity HIGH,CRITICAL modules
+
+# Plan-mode unit tests with mock providers
+terraform -chdir=modules/<name> test
+terraform -chdir=modules/<name>/sample test
+
+# Local Infracost scan (requires Infracost CLI v2 and login/token)
+infracost scan .
+```
+
+## Branch protection
+
+The `main` branch must be protected and reached only through pull requests. Enabling it requires repository administrator rights, so it is a manual step for the organization lead and is not configured by the code in this repository.
+
+## Tasks delivered here
+
+- [B02](https://github.com/aroma-pacifico/aroma-pacifico-roadmap/issues/22)
+- [B04](https://github.com/aroma-pacifico/aroma-pacifico-roadmap/issues/24)
+- [B05](https://github.com/aroma-pacifico/aroma-pacifico-roadmap/issues/25)
+- [B06](https://github.com/aroma-pacifico/aroma-pacifico-roadmap/issues/26)
+- [B07](https://github.com/aroma-pacifico/aroma-pacifico-roadmap/issues/27)
+- [B08](https://github.com/aroma-pacifico/aroma-pacifico-roadmap/issues/28)
+- [B09](https://github.com/aroma-pacifico/aroma-pacifico-roadmap/issues/29)
+- [B10](https://github.com/aroma-pacifico/aroma-pacifico-roadmap/issues/30)
+- [G02](https://github.com/aroma-pacifico/aroma-pacifico-roadmap/issues/42)

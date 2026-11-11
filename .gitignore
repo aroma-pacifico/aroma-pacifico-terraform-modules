@@ -18,8 +18,6 @@ override.tf.json
 *credentials*.csv
 *accessKeys*.csv
 *.auto.tfvars
-.local/
-__pycache__/
 
 # Editors and OS
 .idea/
