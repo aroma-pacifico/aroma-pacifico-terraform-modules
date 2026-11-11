@@ -17,10 +17,13 @@ The eight tiers are `public_query`, `telemetry_ingress`, `drone_object_ingress`,
 
 ## Verification
 
-The module declares the `aws.project` provider alias, so `terraform validate` needs a consuming root and cannot run on the module directory alone. Format and plan-mode tests run on the module itself; validation runs through the `sample/` root once it is present.
+The module declares the `aws.project` provider alias, so `terraform validate` runs through the consuming root in `sample/`, not on the module directory alone. Format and plan-mode tests run on the module and on the sample, offline, with a mocked provider.
 
 ```bash
 terraform fmt -check -recursive
 terraform -chdir=modules/network init -backend=false
 terraform -chdir=modules/network test
+terraform -chdir=modules/network/sample init -backend=false
+terraform -chdir=modules/network/sample validate
+terraform -chdir=modules/network/sample test
 ```
