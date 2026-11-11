@@ -8,11 +8,13 @@ mock_provider "aws" {
 }
 
 variables {
-  client         = "fx"
-  project        = "cf"
-  environment    = "pdn"
-  name_prefix    = "fx-cf-pdn"
-  vpc_cidr_block = "10.82.0.0/16"
+  transit_gateway_id                   = "tgw-0123456789abcdef0"
+  collection_center_summary_cidr_block = "10.40.0.0/13"
+  client                               = "fx"
+  project                              = "cf"
+  environment                          = "pdn"
+  name_prefix                          = "fx-cf-pdn"
+  vpc_cidr_block                       = "10.82.0.0/16"
   collection_center_cidr_blocks = {
     cauca  = "10.41.0.0/16"
     huila  = "10.42.0.0/16"
@@ -111,4 +113,100 @@ run "long_name_prefix_is_rejected" {
   }
 
   expect_failures = [var.name_prefix]
+}
+
+run "routing_follows_the_firewall_policy" {
+  command = plan
+
+  # The mock gives every instance the same generated ID, so three tiers get distinct IDs to prove the wiring.
+  override_resource {
+    target          = aws_route_table.this["public_query"]
+    values          = { id = "rtb-pubq" }
+    override_during = plan
+  }
+
+  override_resource {
+    target          = aws_route_table.this["data"]
+    values          = { id = "rtb-data" }
+    override_during = plan
+  }
+
+  override_resource {
+    target          = aws_route_table.this["transit"]
+    values          = { id = "rtb-tgw" }
+    override_during = plan
+  }
+
+  assert {
+    condition     = length(aws_route_table.this) == 8 && length(aws_route_table_association.this) == 24 && aws_internet_gateway.this.tags["Name"] == "fx-cf-pdn-igw-main"
+    error_message = "The plan must create one route table per tier and associate all 24 subnets."
+  }
+
+  assert {
+    condition     = aws_route_table_association.this["public_query-az1"].route_table_id == "rtb-pubq" && aws_route_table_association.this["data-az3"].route_table_id == "rtb-data" && aws_route_table_association.this["transit-az2"].route_table_id == "rtb-tgw"
+    error_message = "Every subnet must use the route table of its own tier."
+  }
+
+  assert {
+    condition     = aws_route.internet.destination_cidr_block == "0.0.0.0/0"
+    error_message = "The default route must target 0.0.0.0/0."
+  }
+
+  assert {
+    condition     = aws_route.internet.route_table_id == "rtb-pubq"
+    error_message = "Only public_query may carry the default route to the internet gateway."
+  }
+
+  assert {
+    condition     = toset(keys(aws_route.centers)) == toset(["application", "drone_object_ingress", "object_storage", "administration"]) && alltrue([for route in values(aws_route.centers) : route.destination_cidr_block == "10.40.0.0/13" && route.transit_gateway_id == var.transit_gateway_id])
+    error_message = "Only application, drone_object_ingress, object_storage and administration may route 10.40.0.0/13 to the transit gateway (CL-LNK-07)."
+  }
+
+  assert {
+    condition     = length(output.transit_attachment_subnet_ids) == 3 && length(output.route_table_ids) == 8
+    error_message = "The module must expose the transit subnets and the route tables."
+  }
+}
+
+run "no_transit_gateway_means_no_center_routes" {
+  command = plan
+
+  variables {
+    transit_gateway_id = null
+  }
+
+  assert {
+    condition     = length(aws_route.centers) == 0
+    error_message = "Without a transit gateway the module must create no route to the collection centers."
+  }
+}
+
+run "summary_that_misses_a_center_is_rejected" {
+  command = plan
+
+  variables {
+    collection_center_summary_cidr_block = "10.48.0.0/13"
+  }
+
+  expect_failures = [aws_vpc.this]
+}
+
+run "summary_overlapping_the_vpc_is_rejected" {
+  command = plan
+
+  variables {
+    collection_center_summary_cidr_block = "10.80.0.0/13"
+  }
+
+  expect_failures = [aws_vpc.this]
+}
+
+run "bad_transit_gateway_id_is_rejected" {
+  command = plan
+
+  variables {
+    transit_gateway_id = "not-a-gateway"
+  }
+
+  expect_failures = [var.transit_gateway_id]
 }
