@@ -50,10 +50,10 @@ The module declares no provider block; the consuming root supplies the `aws.proj
 
 | Topic | Detail |
 |---|---|
-| Key policy without account root | The policies name explicit administrators and users instead of delegating to the account root, as section 7.3 requires. The administrator list must therefore include the principal that applies the stack, or the key policy lock-out check refuses the key. The service roles that use the keys are created by other stacks, so the root passes their ARNs in `key_user_arns` by naming convention. |
+| Key policy without account root (ASM-270) | The policies name explicit administrators and users instead of delegating to the account root, as section 7.3 requires. The administrator list must therefore include the principal that applies the stack, or the key policy lock-out check refuses the key. The service roles that use the keys are created by other stacks, so the root passes their ARNs in `key_user_arns` by naming convention. |
 | Administrators cannot use the data | The administrator statement has no `Encrypt` or `Decrypt`. `kms:ScheduleKeyDeletion` is allowed to administrators but denied to everyone except break glass. |
 | Pool MFA, not group MFA | Cognito sets MFA per pool, so the split of the case statement is two pools (section 3.1). |
-| Passwordless codes | Email codes always; SMS codes only when the root supplies `field_sms_configuration`, because the SMS role needs an SNS sandbox exit and an external ID that this public module cannot hold. |
+| Passwordless codes (ASM-272) | Email codes always; SMS codes only when the root supplies `field_sms_configuration`, because the SMS role needs an SNS sandbox exit and an external ID that this public module cannot hold. |
 | Name aliases | PC-IAC-003 caps names at 28 characters. A key alias is `alias/<name_prefix>-<class>` without a type code, so that the longest class, `public-view`, fits with a 16 character prefix. |
 | PC-IAC-001 and PC-IAC-005 | PC-IAC-001 requires `providers.tf` in every module; AGENTS.md forbids provider blocks in modules. `providers.tf` holds only a comment and the `aws.project` alias is declared in `versions.tf`. |
 | `sample/` and `examples/` | PC-IAC-001 names `sample/` and PC-IAC-018 names `examples/`. The module uses `sample/`. |
@@ -63,11 +63,11 @@ The module declares no provider block; the consuming root supplies the `aws.proj
 
 | Item | Owner |
 |---|---|
-| IoT policy of a farm node | Ingestion module, B09 (ADR-003). The module only provides the revocation path. |
+| IoT policy of a farm node (ASM-271) | Ingestion module, B09 (ADR-003). The module only provides the revocation path. |
 | IoT policy and grant topic of a drone kit | Drone service, A15 (PD-104). |
 | The revocation function, the operations screen and the pre-authentication trigger | Application stacks. |
 | Cognito app clients and Lambda triggers | Application stacks; they depend on callback URLs and functions that do not exist yet. |
-| IAM Identity Center permission sets (`PlatformReadOnly`, `DeviceRevocation`, `IdentitySupport`, `Auditor`, `BreakGlass`) | Deferred. They live in the management account with its own provider, and the module has one alias. See the decision log. |
+| IAM Identity Center permission sets (`PlatformReadOnly`, `DeviceRevocation`, `IdentitySupport`, `Auditor`, `BreakGlass`) | Deferred (PD-270). They live in the management account with its own provider, and the module has one alias. |
 | TLS policy of the IoT domain configuration and of API Gateway and CloudFront | The modules that own those endpoints (PD-100). |
 | The `audit` key | Security account (A08). |
 
