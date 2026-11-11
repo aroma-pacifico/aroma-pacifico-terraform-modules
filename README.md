@@ -74,7 +74,7 @@ Every reference module and sample root undergoes seven mandatory checks:
 
 1. **Formatting**: `terraform fmt -check -diff` verifies canonical HCL indentation and styling.
 2. **Initialization**: `terraform init -backend=false -input=false` downloads required provider plugins without configuring remote state.
-3. **Validation**: `terraform validate` verifies syntax and resource configuration consistency. Child modules declaring `configuration_aliases = [aws.project]` (PC-IAC-005) receive a temporary local provider stub during standalone validation.
+3. **Validation**: `terraform validate` verifies syntax and resource configuration consistency. Child modules declaring `configuration_aliases` (PC-IAC-005) receive temporary local provider stubs for every declared AWS alias during standalone validation.
 4. **Linting**: `tflint --compact` verifies Terraform style conventions and AWS provider best practices defined in `.tflint.hcl`.
 5. **Security Scanning**: `trivy config --severity HIGH,CRITICAL` detects security misconfigurations and insecure defaults.
 6. **Unit Testing**: `terraform test` executes plan-mode assertion scenarios against mocked providers, requiring zero live cloud credentials.
