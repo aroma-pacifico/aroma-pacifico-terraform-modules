@@ -1,6 +1,6 @@
 # Infrastructure as Code (IaC) Reference Module Rules
 
-This index provides an English summary of the 27 normative Terraform rules maintained in this directory (`pc-iac-001.md` through `pc-iac-027.md`). Each rule is binding for all Terraform module development and IaC delivery across the project.
+This index provides an English summary of the 28 normative Terraform rules maintained in this directory (`pc-iac-001.md` through `pc-iac-028.md`). Each rule is binding for all Terraform module development and IaC delivery across the project.
 
 | ID | Title | Summary |
 |---|---|---|
@@ -31,3 +31,4 @@ This index provides an English summary of the 27 normative Terraform rules maint
 | PC-IAC-025 | Mandatory Root Governance Processing | Assigns responsibility to the root stack for injecting environment context, governance policies, and mandatory tags into child modules. |
 | PC-IAC-026 | Transformation Pattern in Sample Configurations | Defines standard sample directory patterns demonstrating how consumers transform and map inputs into the module safely. |
 | PC-IAC-027 | Automated Cost Estimation in CI/CD Pipelines | Mandates Infracost CLI v2 cost estimation in pull request CI and CD promotion workflows, publishing monthly delta breakdowns to job summaries without requiring cloud credentials. |
+| PC-IAC-028 | AWS Emulation with Floci for Executable Plan Evidence | Mandates the Floci AWS emulator pinned by digest for local and CI terraform plan evidence without cloud credentials, defining environment variables, service containers, and S3 backend emulation. |
