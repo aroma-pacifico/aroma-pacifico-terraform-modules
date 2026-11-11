@@ -48,18 +48,16 @@ resource "aws_s3_bucket_public_access_block" "state" {
 }
 
 resource "aws_s3_bucket_versioning" "state" {
-  provider              = aws.project
-  bucket                = aws_s3_bucket.state.id
-  expected_bucket_owner = var.aws_context.account_id
+  provider = aws.project
+  bucket   = aws_s3_bucket.state.id
   versioning_configuration {
     status = "Enabled"
   }
 }
 
 resource "aws_s3_bucket_server_side_encryption_configuration" "state" {
-  provider              = aws.project
-  bucket                = aws_s3_bucket.state.id
-  expected_bucket_owner = var.aws_context.account_id
+  provider = aws.project
+  bucket   = aws_s3_bucket.state.id
   rule {
     # Object ARN encryption context is required by the domain-scoped KMS policy.
     bucket_key_enabled = false
