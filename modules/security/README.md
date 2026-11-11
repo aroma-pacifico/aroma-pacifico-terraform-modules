@@ -1,6 +1,6 @@
 # Security module (box D06)
 
-Reference module for the security baseline of one environment of the Aroma Pacifico pilot, built from the security and identity design of the architecture repository (A09). It creates the customer-managed keys, the two Cognito user pools with one group per role, the role of the revocation function and, on request, the bucket policy statements that force encrypted transport.
+Reference module for the security baseline of one environment of the Aroma Pacifico pilot, built from the security and identity design of the architecture repository (A09). It creates the customer-managed keys, the two Cognito user pools with one group per role, the role of the revocation function, the two service roles of AWS IoT Core and, on request, the bucket policy statements that force encrypted transport.
 
 The module declares no provider block; the consuming root supplies the `aws.project` alias. Every value comes from the root, with no environment defaults, so one module serves `dev`, `qa` and `pdn`. The values in `sample/` are synthetic because this repository is public.
 
@@ -13,6 +13,7 @@ The module declares no provider block; the consuming root supplies the `aws.proj
 | Identity directory | Staff user pool (MFA `ON`, TOTP only) and field user pool (MFA `OFF`, passwordless one-time codes) on the Essentials tier, both closed to self sign-up | Section 3, ASM-090, ASM-091 |
 | Roles | Seven Cognito groups: `farmer`, `transporter`, `buyer` in the field pool and `collection_center_operator`, `drone_operator`, `agronomist`, `platform_operator` in the staff pool | Section 4.1 |
 | Revocation | An IAM role that revokes a device certificate, detaches its policy and principal, marks the thing, and disables, signs out or regroups a user | Section 10 |
+| IoT service roles | The topic rule role (`iot.amazonaws.com` may assume it for the one rule of the prefix) with `dynamodb:PutItem` on the telemetry table, `sqs:SendMessage` on the threshold queue and the rule error queue, and `kms:Decrypt` and `kms:GenerateDataKey` on the `telemetry` and `records` keys. The IoT logging role, which writes to streams of the `AWSIotLogsV2` log group | ASM-400, ASM-401, PD-073 |
 | Encryption in transit | Bucket policy denying plain HTTP and TLS older than 1.2, rendered for the buckets given in `protected_bucket_arns` | Section 7.1 |
 
 ## Contract
@@ -35,6 +36,7 @@ The module declares no provider block; the consuming root supplies the `aws.proj
 | `cognito_group_names` | Group name of each role. |
 | `mfa_required_roles` | Roles in the pool that requires TOTP. |
 | `revocation_role_arn`, `revocation_role_name` | Role of the revocation function. |
+| `iot_rule_role_arn`, `iot_logging_role_arn` | Inputs `rule_role_arn` and `logging_role_arn` of the telemetry-ingestion module. |
 | `secure_transport_policy_statements_json` | Policy document with the two deny statements, or null. |
 
 ## Acceptance criteria
@@ -54,6 +56,7 @@ The module declares no provider block; the consuming root supplies the `aws.proj
 | Administrators cannot use the data | The administrator statement has no `Encrypt` or `Decrypt`. `kms:ScheduleKeyDeletion` is allowed to administrators but denied to everyone except break glass. |
 | Pool MFA, not group MFA | Cognito sets MFA per pool, so the split of the case statement is two pools (section 3.1). |
 | Passwordless codes (ASM-272) | Email codes always; SMS codes only when the root supplies `field_sms_configuration`, because the SMS role needs an SNS sandbox exit and an external ID that this public module cannot hold. |
+| IoT service roles (ASM-400, ASM-401) | The roles are named `<name_prefix>-role-iotrul` and `<name_prefix>-role-iotlog`. Their grants are built from names that other modules derive from the same prefix: `<name_prefix>-ddb-tel` and `<name_prefix>-iot-dlq` (telemetry-ingestion), `<name_prefix>-sqs-thresh` (inference-functions, function key `thresh`) and the rule `<name_prefix with underscores>_iot_rul`. A different prefix or function key in the consuming root needs the same change here. The rule role is added to the `UseKey` statement of the `telemetry` and `records` keys automatically, so it must not be repeated in `key_user_arns`. The logging role holds no `logs:CreateLogGroup` because the ingestion module creates the group; it holds no key grant because the `logs` key policy admits the log service. |
 | Name aliases | PC-IAC-003 caps names at 28 characters. A key alias is `alias/<name_prefix>-<class>` without a type code, so that the longest class, `public-view`, fits with a 16 character prefix. |
 | PC-IAC-001 and PC-IAC-005 | PC-IAC-001 requires `providers.tf` in every module; AGENTS.md forbids provider blocks in modules. `providers.tf` holds only a comment and the `aws.project` alias is declared in `versions.tf`. |
 | `sample/` and `examples/` | PC-IAC-001 names `sample/` and PC-IAC-018 names `examples/`. The module uses `sample/`. |
@@ -63,7 +66,7 @@ The module declares no provider block; the consuming root supplies the `aws.proj
 
 | Item | Owner |
 |---|---|
-| IoT policy of a farm node (ASM-271) | Ingestion module, B09 (ADR-003). The module only provides the revocation path. |
+| IoT policy of a farm node (ASM-271), the logging setting and the topic rule | Ingestion module, B09 (ADR-003). The module only provides the revocation path. |
 | IoT policy and grant topic of a drone kit | Drone service, A15 (PD-104). |
 | The revocation function, the operations screen and the pre-authentication trigger | Application stacks. |
 | Cognito app clients and Lambda triggers | Application stacks; they depend on callback URLs and functions that do not exist yet. |
