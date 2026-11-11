@@ -1,1 +1,1 @@
-# No account lookups in the mock fixture; production discovery belongs in the private root.
+# The sample reads no data sources; account and Region discovery belongs to the private root.

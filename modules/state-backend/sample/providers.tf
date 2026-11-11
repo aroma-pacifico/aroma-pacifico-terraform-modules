@@ -1,8 +1,10 @@
-# Native tests inject a mock. A real account plan is not authorized by this example.
+# Native tests replace this provider with a mock. The sample is not a deployable root: the real
+# root stacks add allowed_account_ids and assume_role (PC-IAC-005) in aroma-pacifico-infrastructure.
 provider "aws" {
-  alias               = "principal"
-  region              = var.configuration.aws_context.region
-  allowed_account_ids = [var.configuration.aws_context.account_id]
-  assume_role { role_arn = var.configuration.execution_role_arn }
-  default_tags { tags = local.common_tags }
+  alias  = "principal"
+  region = var.region
+
+  default_tags {
+    tags = local.common_tags
+  }
 }

@@ -1,17 +1,19 @@
-# Offline development composition; never use a local source in a shared environment.
+# Offline development composition; a shared environment consumes the module by git tag.
 module "state_backend" {
-  source    = "../"
+  source = "../"
+
   providers = { aws.project = aws.principal }
 
-  client      = local.configuration.client
-  project     = local.configuration.project
-  environment = local.configuration.environment
+  client      = var.client
+  project     = var.project
+  environment = var.environment
 
   name_prefix     = local.name_prefix
   additional_tags = local.common_tags
 
-  aws_context           = local.configuration.aws_context
-  key_administrators    = local.configuration.key_administrators
-  configuration_readers = local.configuration.configuration_readers
-  domain_access         = local.configuration.domain_access
+  aws_context                   = local.aws_context
+  key_administrators            = var.key_administrators
+  configuration_readers         = var.configuration_readers
+  break_glass_role_arn_patterns = var.break_glass_role_arn_patterns
+  domain_access                 = var.domain_access
 }
