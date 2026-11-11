@@ -30,3 +30,15 @@ run "dev_association" {
     error_message = "The same child must work in dev without copying resource logic or qa destinations."
   }
 }
+
+run "pdn_workload_association" {
+  command = plan
+  variables {
+    environment = "pdn"
+    ingestion   = { environment = "pdn", endpoint = "pdn.example.invalid", policy_name = "fixture-pdn-policy", topic_template = "fixture/pdn/{thing_name}" }
+  }
+  assert {
+    condition     = output.node_names.crop == "fx-cf-pdn-iot-a-crop" && output.telemetry_topics.drying == "fixture/pdn/fx-cf-pdn-iot-a-drying" && output.ingestion_endpoint == "pdn.example.invalid" && length(output.certificate_arns) == 2
+    error_message = "One farm must adapt to the pdn workload context using synthetic B09 inputs."
+  }
+}

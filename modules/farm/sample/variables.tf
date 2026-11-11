@@ -9,11 +9,11 @@ variable "client" {
 }
 
 variable "environment" {
-  description = "Offline example environment, limited to dev or qa."
+  description = "Offline example environment, dev, qa or pdn; mock plans only."
   type        = string
   validation {
-    condition     = contains(["dev", "qa"], var.environment)
-    error_message = "The offline sample accepts dev or qa only."
+    condition     = contains(["dev", "qa", "pdn"], var.environment)
+    error_message = "The offline sample accepts dev, qa or pdn only."
   }
 }
 

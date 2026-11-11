@@ -61,8 +61,8 @@ for path in MODULE.rglob("*.tftest.hcl"):
     require(commands and all(command == "plan" for command in commands), str(path))
     require('mock_provider "aws"' in path.read_text(), f"Missing mock: {path}")
 
-verify_graphs(MODULE, 16, {"farm_a": "fixture-a", "farm_b": "fixture-b", "dev_isolation": "fixture-a"})
-verify_graphs(MODULE / "sample", 2, {"qa_association": "fixture-a", "dev_association": "fixture-b"},
+verify_graphs(MODULE, 19, {"farm_a": "fixture-a", "farm_b": "fixture-b", "dev_isolation": "fixture-a"})
+verify_graphs(MODULE / "sample", 3, {"qa_association": "fixture-a", "dev_association": "fixture-b", "pdn_workload_association": "fixture-a"},
               "-var-file=terraform.tfvars")
 
 base = {
@@ -106,4 +106,4 @@ with tempfile.TemporaryDirectory(prefix="d08-rejections-", dir=scratch) as tempo
 
 require(not list(MODULE.rglob("*.tfstate*")), "Unexpected state file")
 print("PASS scope: only IoT cloud identities, no hardware/network/compute, no 200-farm graph, no state files")
-print("PARTIAL runtime integration: B04/root foundations, B09 references, release and PD-071 remain pending")
+print("PASS offline workload composition; B09 references are explicitly synthetic; release and runtime verification are not claimed")
