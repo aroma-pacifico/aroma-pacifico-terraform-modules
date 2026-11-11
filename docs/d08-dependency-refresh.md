@@ -27,9 +27,9 @@ exceptions remain visible for review, rather than rewriting existing work.
 
 The dependency audit used fresh issue bodies, every available comment, issue
 timelines, all-state PR lists/files and fetched main trees, rather than issue
-closure alone. B01 #21, B04 #24, B07 #27 and B09 #29 are Open with no Terraform
-implementation or linked implementation PR found. A04 #4 has accepted ADR-003
-in architecture PR #10; A11 #11 has the merged center design in PR #23; A10 #10
+closure alone. B01 (aroma-pacifico/aroma-pacifico-roadmap#21), B04 (aroma-pacifico/aroma-pacifico-roadmap#24), B07 (aroma-pacifico/aroma-pacifico-roadmap#27) and B09 (aroma-pacifico/aroma-pacifico-roadmap#29) are Open with no Terraform
+implementation or linked implementation PR found. A04 (aroma-pacifico/aroma-pacifico-roadmap#4) has accepted ADR-003
+in architecture PR #10; A11 (aroma-pacifico/aroma-pacifico-roadmap#11) has the merged center design in PR #23; A10 (aroma-pacifico/aroma-pacifico-roadmap#10)
 has the merged connectivity design in PR #21. These three Closed dependencies
 are verified at the design boundary, not deployed infrastructure.
 
@@ -152,3 +152,11 @@ revert is the rollback; no cloud rollback or state restoration exists here.
 Changes to shared backend/module interfaces require a new review and repeat
 of affected checks. Actual publication links/status and related Draft PRs
 are recorded in the PR and the new roadmap progress comment.
+
+## Published review package
+
+The assigned branch `feat/28-pattern-farm` was pushed successfully without force.
+[B08 Draft PR](https://github.com/aroma-pacifico/aroma-pacifico-terraform-modules/pull/3) is Open, targets main, and remains Draft.
+Its three existing GitHub convention checks passed; they do not run Terraform
+or replace the recorded local checks. Related Draft PRs: [B02](https://github.com/aroma-pacifico/aroma-pacifico-infrastructure/pull/3); [B05](https://github.com/aroma-pacifico/aroma-pacifico-infrastructure/pull/4); [B08](https://github.com/aroma-pacifico/aroma-pacifico-terraform-modules/pull/3).
+The roadmap issue remains Open. No PR was merged and no release tag was created.
