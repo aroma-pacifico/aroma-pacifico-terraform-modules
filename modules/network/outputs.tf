@@ -1,0 +1,68 @@
+output "availability_zone_ids" {
+  description = "Availability Zone ID behind each slot (az1 to az3), chosen by the module in sorted order."
+  value       = local.az_ids
+}
+
+output "endpoint_security_group_ids" {
+  description = "Security group ID of the interface endpoints of each tier that hosts any."
+  value       = { for tier, security_group in aws_security_group.endpoints : tier => security_group.id }
+}
+
+output "flow_log_id" {
+  description = "ID of the flow log of rejected traffic, or null when disabled."
+  value       = one(aws_flow_log.rejected[*].id)
+}
+
+output "gateway_endpoint_ids" {
+  description = "Gateway endpoint IDs keyed by service (s3, dynamodb)."
+  value       = { for key, service in local.gateway_services : service => aws_vpc_endpoint.gateway[key].id }
+}
+
+output "interface_endpoint_ids" {
+  description = "Interface endpoint IDs keyed by the short name given in interface_endpoints."
+  value       = { for key, endpoint in aws_vpc_endpoint.interface : key => endpoint.id }
+}
+
+output "internet_gateway_id" {
+  description = "ID of the internet gateway, routed only from public_query."
+  value       = aws_internet_gateway.this.id
+}
+
+output "network_acl_ids" {
+  description = "Network ACL ID of each tier."
+  value       = { for tier, network_acl in aws_network_acl.this : tier => network_acl.id }
+}
+
+output "route_table_ids" {
+  description = "Route table ID of each tier, for later routes and associations."
+  value       = { for tier, route_table in aws_route_table.this : tier => route_table.id }
+}
+
+output "subnet_cidr_blocks" {
+  description = "Subnet CIDR blocks keyed by tier and then by Availability Zone slot."
+  value       = var.subnets
+}
+
+output "subnet_ids" {
+  description = "Subnet IDs keyed by tier and then by Availability Zone slot, for later routes, endpoints and associations."
+  value = {
+    for tier, azs in var.subnets : tier => {
+      for az in keys(azs) : az => aws_subnet.this["${tier}-${az}"].id
+    }
+  }
+}
+
+output "transit_attachment_subnet_ids" {
+  description = "Subnets of the transit tier, one per Availability Zone slot, for the transit gateway VPC attachment created outside this module."
+  value       = [for az in local.az_slots : aws_subnet.this["transit-${az}"].id]
+}
+
+output "vpc_cidr_block" {
+  description = "Primary IPv4 CIDR block of the environment VPC."
+  value       = aws_vpc.this.cidr_block
+}
+
+output "vpc_id" {
+  description = "ID of the environment VPC."
+  value       = aws_vpc.this.id
+}
