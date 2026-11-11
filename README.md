@@ -37,3 +37,8 @@ docs/ (d08-technical-evidence.md, decision-log.md, troubleshooting-log.md)
 - [B08](https://github.com/aroma-pacifico/aroma-pacifico-roadmap/issues/28)
 - [B09](https://github.com/aroma-pacifico/aroma-pacifico-roadmap/issues/29)
 - [B10](https://github.com/aroma-pacifico/aroma-pacifico-roadmap/issues/30)
+
+## Latest verification refresh
+
+See [B08 dependency refresh](docs/d08-dependency-refresh.md) for the
+2026-11-10 audit, current permissions, executed checks and remaining blockers.

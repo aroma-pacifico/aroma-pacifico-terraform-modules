@@ -1,5 +1,9 @@
 # D08 / B08 implementation evidence
 
+Historical snapshot. See the [2026-11-10 refresh](d08-dependency-refresh.md)
+for current permissions, dependencies and verification; older publication blockers
+and test counts below describe the earlier session.
+
 Date: 2026-11-07. Owner: JR2. Status: module verified offline; runtime integration partial.
 Refs [aroma-pacifico/aroma-pacifico-roadmap#28](https://github.com/aroma-pacifico/aroma-pacifico-roadmap/issues/28).
 
