@@ -8,6 +8,11 @@ variable "collection_center_cidr_blocks" {
   type        = map(string)
 }
 
+variable "collection_center_summary_cidr_block" {
+  description = "Single CIDR block that summarizes every collection center."
+  type        = string
+}
+
 variable "environment" {
   description = "Environment code: dev, qa or pdn."
   type        = string
@@ -26,6 +31,11 @@ variable "region" {
 variable "subnets" {
   description = "Subnet CIDR blocks keyed by tier and Availability Zone slot."
   type        = map(map(string))
+}
+
+variable "transit_gateway_id" {
+  description = "Synthetic transit gateway ID."
+  type        = string
 }
 
 variable "vpc_cidr_block" {
