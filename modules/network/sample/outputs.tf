@@ -1,3 +1,8 @@
+output "network_acl_ids" {
+  description = "Network ACL ID of each tier."
+  value       = module.network.network_acl_ids
+}
+
 output "route_table_ids" {
   description = "Route table ID of each tier."
   value       = module.network.route_table_ids
