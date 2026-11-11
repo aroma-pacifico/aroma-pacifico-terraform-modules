@@ -99,6 +99,44 @@ variable "environment" {
   }
 }
 
+variable "flow_logs" {
+  description = "CloudWatch Logs destination and IAM role for the flow log of rejected traffic, supplied by the security stack. Null disables flow logs."
+  type = object({
+    destination_arn = string
+    iam_role_arn    = string
+  })
+  default = null
+
+  validation {
+    condition     = var.flow_logs == null || (startswith(var.flow_logs.destination_arn, "arn:aws:logs:") && startswith(var.flow_logs.iam_role_arn, "arn:aws:iam::"))
+    error_message = "Flow logs need a CloudWatch Logs destination ARN and an IAM role ARN, or null."
+  }
+}
+
+variable "interface_endpoints" {
+  description = "Interface endpoints keyed by a short name (at most 6 characters, used in the physical name). Each names the service suffix and the tier that hosts it: application, object_storage or administration. telemetry_ingress and drone_object_ingress hold no endpoint (CL-TEL-04, PD-140)."
+  type = map(object({
+    service = string
+    tier    = string
+  }))
+  nullable = false
+
+  validation {
+    condition     = alltrue([for key in keys(var.interface_endpoints) : can(regex("^[a-z0-9]{1,6}$", key))])
+    error_message = "Interface endpoint keys must be 1 to 6 lowercase alphanumeric characters so that names stay within 28 characters."
+  }
+
+  validation {
+    condition     = alltrue([for endpoint in values(var.interface_endpoints) : contains(["application", "object_storage", "administration"], endpoint.tier)])
+    error_message = "Interface endpoints may only live in application, object_storage or administration."
+  }
+
+  validation {
+    condition     = alltrue([for endpoint in values(var.interface_endpoints) : can(regex("^[a-z0-9][a-z0-9.-]*$", endpoint.service))])
+    error_message = "Each service must be the lowercase service suffix, for example logs or execute-api."
+  }
+}
+
 variable "name_prefix" {
   description = "Prefix of every physical name, normally client-project-environment. At most 16 characters so that names stay within the 28 character cap of PC-IAC-003."
   type        = string
@@ -107,6 +145,17 @@ variable "name_prefix" {
   validation {
     condition     = can(regex("^[a-z0-9]+(-[a-z0-9]+)*$", var.name_prefix)) && length(var.name_prefix) <= local.max_name_prefix_length
     error_message = "Name prefix must be lowercase alphanumeric words joined by hyphens, at most 16 characters (PC-IAC-003 28 character cap)."
+  }
+}
+
+variable "organization_id" {
+  description = "AWS Organizations ID admitted by the gateway endpoint policies (aws:ResourceOrgID). Supplied by the root; never commit a real value to this public repository."
+  type        = string
+  nullable    = false
+
+  validation {
+    condition     = can(regex("^o-[a-z0-9]{10,32}$", var.organization_id))
+    error_message = "Organization ID must look like o-0123456789."
   }
 }
 
