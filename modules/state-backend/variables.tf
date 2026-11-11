@@ -62,6 +62,17 @@ variable "key_administrators" {
   }
 }
 
+variable "break_glass_role_arn_patterns" {
+  description = "ARN patterns of the break-glass roles, the only principals allowed to schedule key deletion or disable the key. Wildcards are allowed because Identity Center role names carry a generated suffix. Never commit a real value."
+  type        = list(string)
+  nullable    = false
+
+  validation {
+    condition     = length(var.break_glass_role_arn_patterns) > 0 && alltrue([for pattern in var.break_glass_role_arn_patterns : startswith(pattern, "arn:") && pattern != "arn:*"])
+    error_message = "Provide at least one break-glass ARN pattern that starts with arn: and is not a bare wildcard."
+  }
+}
+
 variable "configuration_readers" {
   description = "Explicit same-account IAM roles permitted to inspect key configuration for plan/review, without changing policy or decrypting state."
   type        = set(string)
@@ -94,8 +105,8 @@ variable "domain_access" {
     error_message = "Plan and state-write identities must be different across all domains."
   }
   validation {
-    condition     = length(setintersection(var.key_administrators, toset(flatten([for access in var.domain_access : tolist(setunion(access.plan_role_arns, access.write_role_arns))])))) == 0
-    error_message = "Key-administration and state-data roles must be separate."
+    condition     = length(setintersection(var.key_administrators, toset(flatten([for access in var.domain_access : tolist(access.plan_role_arns)])))) == 0
+    error_message = "Key administrators must not be plan roles. An apply role may administer the key and write its own domain state."
   }
 }
 

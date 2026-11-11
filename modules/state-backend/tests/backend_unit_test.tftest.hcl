@@ -18,6 +18,9 @@ variables {
   aws_context           = { account_id = format("%012d", 0), partition = "aws", region = "us-east-1" }
   key_administrators    = ["arn:aws:iam::${format("%012d", 0)}:role/fixture-admin"]
   configuration_readers = ["arn:aws:iam::${format("%012d", 0)}:role/fixture-auditor"]
+  break_glass_role_arn_patterns = [
+    "arn:aws:iam::${format("%012d", 0)}:role/aws-reserved/sso.amazonaws.com/*/AWSReservedSSO_FixtureBreakGlass_*",
+  ]
   domain_access = {
     for domain in ["network", "security", "workload", "state-backend"] : domain => {
       plan_role_arns  = ["arn:aws:iam::${format("%012d", 0)}:role/fixture-${domain}-plan"]
@@ -54,8 +57,24 @@ run "qa_backend" {
     error_message = "Expose only the required backend references."
   }
   assert {
-    condition     = alltrue([for statement in jsondecode(aws_kms_key.state.policy).Statement : statement.Principal.AWS != "*" && alltrue([for action in statement.Action : !strcontains(action, "*")])])
-    error_message = "KMS grants require explicit principals/actions; Resource star is scoped to this key only."
+    condition     = alltrue([for statement in jsondecode(aws_kms_key.state.policy).Statement : statement.Effect == "Deny" || (statement.Principal.AWS != "*" && alltrue([for action in statement.Action : !strcontains(action, "*")]))])
+    error_message = "KMS allow statements require explicit principals/actions; Resource star is scoped to this key only."
+  }
+  assert {
+    condition = anytrue([
+      for statement in jsondecode(aws_kms_key.state.policy).Statement :
+      statement.Sid == "DenyDeletionExceptBreakGlass" && statement.Effect == "Deny" && statement.Principal.AWS == "*"
+      && contains(statement.Action, "kms:ScheduleKeyDeletion") && contains(statement.Action, "kms:DisableKey")
+      && try(tolist(statement.Condition.ArnNotLike["aws:PrincipalArn"]) == var.break_glass_role_arn_patterns, false)
+    ])
+    error_message = "Only break glass may schedule key deletion or disable the key."
+  }
+  assert {
+    condition = anytrue([
+      for statement in jsondecode(aws_s3_bucket_policy.state.policy).Statement :
+      statement.Sid == "DenyUntrustedPrincipals" && alltrue([for pattern in var.break_glass_role_arn_patterns : contains(tolist(statement.Condition.ArnNotLike["aws:PrincipalArn"]), pattern)])
+    ])
+    error_message = "Break glass must be excepted from the untrusted-principal deny."
   }
 }
 
@@ -144,10 +163,38 @@ run "shared_plan_write_identity" {
   expect_failures = [var.domain_access]
 }
 
-run "admin_as_data_role" {
+run "admin_as_plan_role" {
   command = plan
   variables { domain_access = { network = { plan_role_arns = ["arn:aws:iam::${format("%012d", 0)}:role/fixture-admin"] } } }
   expect_failures = [var.domain_access]
+}
+
+run "admin_as_writer_is_allowed" {
+  command = plan
+  variables {
+    domain_access = {
+      network = {
+        plan_role_arns  = ["arn:aws:iam::${format("%012d", 0)}:role/fixture-network-plan"]
+        write_role_arns = ["arn:aws:iam::${format("%012d", 0)}:role/fixture-admin"]
+      }
+    }
+  }
+  assert {
+    condition     = contains([for s in jsondecode(aws_s3_bucket_policy.state.policy).Statement : s.Sid], "Writenetwork")
+    error_message = "An apply role may administer the key and write its own domain state."
+  }
+}
+
+run "missing_break_glass" {
+  command = plan
+  variables { break_glass_role_arn_patterns = [] }
+  expect_failures = [var.break_glass_role_arn_patterns]
+}
+
+run "bare_wildcard_break_glass" {
+  command = plan
+  variables { break_glass_role_arn_patterns = ["arn:*"] }
+  expect_failures = [var.break_glass_role_arn_patterns]
 }
 
 run "invalid_bucket_name" {
