@@ -101,6 +101,8 @@ exact eight-resource graphs, static deletion guards and 27 policy decisions usin
 a deliberately limited evaluator. These are not real AWS plans or IAM proofs.
 Private plan artifacts and state must not be committed. No AWS credential is
 required for these checks; the public repository must never receive credentials.
+See [verification evidence](verification.md) for actual results and the retained
+LOW-severity S3 logging finding, which requires an approved external destination.
 
 ```text
 modules/state-backend/

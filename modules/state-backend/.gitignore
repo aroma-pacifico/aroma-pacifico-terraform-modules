@@ -1,6 +1,6 @@
 # Child locks and local operational artifacts are never module release inputs.
 .terraform/
-.terraform.lock.hcl
+/.terraform.lock.hcl
 *.tfstate*
 *.tfplan
 .local/
