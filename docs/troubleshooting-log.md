@@ -1,5 +1,21 @@
 # Troubleshooting log
 
+## Duplicate CSR text representations (2026-11-10)
+
+**Context and symptom:** A new mocked regression reused the crop CSR with
+trailing whitespace for drying. The old validation accepted it: Terraform
+reported `Failure! 15 passed, 1 failed` because the expected rejection was absent.
+
+**Root cause:** Raw string comparison treated PEM formatting as identity.
+
+**Resolution:** Strip PEM whitespace for duplicate comparison only. Preserve
+the original public request passed to AWS. The corrected module passes all
+16 plan-mode scenarios, including the added formatting regressions.
+
+**Preventive architecture:** Keep device keys outside Terraform and verify
+distinct public keys during real enrollment. Text normalization does not
+prove possession, CSR signatures, or unique keys in independently signed requests.
+
 ## D08 provider and local tooling
 
 **Context and symptom:** Sandbox registry access failed with a forbidden socket,

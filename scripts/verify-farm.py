@@ -61,7 +61,7 @@ for path in MODULE.rglob("*.tftest.hcl"):
     require(commands and all(command == "plan" for command in commands), str(path))
     require('mock_provider "aws"' in path.read_text(), f"Missing mock: {path}")
 
-verify_graphs(MODULE, 14, {"farm_a": "fixture-a", "farm_b": "fixture-b", "dev_isolation": "fixture-a"})
+verify_graphs(MODULE, 16, {"farm_a": "fixture-a", "farm_b": "fixture-b", "dev_isolation": "fixture-a"})
 verify_graphs(MODULE / "sample", 2, {"qa_association": "fixture-a", "dev_association": "fixture-b"},
               "-var-file=terraform.tfvars")
 

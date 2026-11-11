@@ -187,3 +187,25 @@ run "multiple_farms_as_nodes" {
   }
   expect_failures = [var.nodes]
 }
+
+run "duplicate_csr_line_endings" {
+  command = plan
+  variables {
+    nodes = {
+      crop   = { csr = replace(file("tests/fixtures/crop.csr"), "\r\n", "\n") }
+      drying = { csr = replace(replace(file("tests/fixtures/crop.csr"), "\r\n", "\n"), "\n", "\r\n") }
+    }
+  }
+  expect_failures = [var.nodes]
+}
+
+run "duplicate_csr_trailing_whitespace" {
+  command = plan
+  variables {
+    nodes = {
+      crop   = { csr = file("tests/fixtures/crop.csr") }
+      drying = { csr = "${file("tests/fixtures/crop.csr")}\n " }
+    }
+  }
+  expect_failures = [var.nodes]
+}

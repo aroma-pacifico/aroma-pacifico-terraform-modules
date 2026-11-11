@@ -29,7 +29,10 @@ existence, TLS policy or correct AWS account. The caller must verify those.
 Public outputs are `node_names`, `certificate_arns`, `ingestion_endpoint`,
 `telemetry_topics`, `store_and_forward_contract` and `desired_cost_tags`.
 Full resource objects, certificate PEMs and private keys are not exported.
-CSR syntax checks are not signature verification; AWS validates real CSRs.
+CSR comparison ignores PEM whitespace so reformatting the same request cannot
+bypass duplicate detection. Syntax checks are not signature or public-key
+verification; AWS validates real CSRs. Distinct requests are not proof that
+devices generated distinct private keys; enrollment must verify that separately.
 The input accepts no private key, and CSR registration avoids generating one.
 The contract's message metadata labels are semantic requirements, not a new
 wire-format schema. B09 retains ownership of the accepted payload and topics.
@@ -96,7 +99,7 @@ reports a missing provider configuration. That diagnostic is not evidence of
 existing state. Native tests inject mocks and run no AWS calls.
 
 After initializing both the child and sample with the supported provider,
-run `python scripts/verify-farm.py` from the repository root. It executes 14
+run `python scripts/verify-farm.py` from the repository root. It executes 16
 child scenarios, two root association scenarios and five isolated rejection
 fixtures. It inspects five valid JSON plan events for exactly eight identity
 creates, one farm and two node roles, with no destroys or replacements. These

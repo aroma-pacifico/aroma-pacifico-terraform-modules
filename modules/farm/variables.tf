@@ -90,7 +90,7 @@ variable "nodes" {
     error_message = "Each node requires a public PEM certificate signing request, never a private key."
   }
   validation {
-    condition     = length(distinct([for node in var.nodes : node.csr])) == length(var.nodes)
+    condition     = length(distinct([for node in var.nodes : replace(node.csr, "/\\s+/", "")])) == length(var.nodes)
     error_message = "Crop and drying must supply distinct node CSRs."
   }
 }
