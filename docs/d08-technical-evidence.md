@@ -52,7 +52,7 @@ acceptance criteria exactly match the request. It has no scope discrepancy.
 
 | Dependency | Verified status and implementation |
 |---|---|
-| [B04 #24](https://github.com/aroma-pacifico/aroma-pacifico-roadmap/issues/24), `[B04] Code the network module for the pattern environment` | Open; JR1; assigned kvjc; 10 h; blocked by B02/B03/A07. No implementation PR or reusable network outputs found in either Terraform repository or issue timeline. |
+| [B04 #24](https://github.com/aroma-pacifico/aroma-pacifico-roadmap/issues/24), `[B04] Code the network module for the pattern environment` | Open; JR1; assigned JR1; 10 h; blocked by B02/B03/A07. No implementation PR or reusable network outputs found in either Terraform repository or issue timeline. |
 | [A10 #10](https://github.com/aroma-pacifico/aroma-pacifico-roadmap/issues/10), `[A10] Design end-to-end connectivity, including the no-signal case` | Closed; SR1 / JR1; no assignee. [Architecture PR #21](https://github.com/aroma-pacifico/aroma-pacifico-architecture/pull/21) merged; supersedes closed PR #19. Design is available. |
 
 B04 requires the seven subnet roles, distinct environment blocks, reusable
