@@ -139,6 +139,80 @@ run "revocation_role_covers_devices_and_users" {
   }
 }
 
+run "iot_rule_role_is_scoped_to_the_ingestion_resources" {
+  command = plan
+
+  assert {
+    condition     = aws_iam_role.iot_rule.name == "fx-cf-pdn-role-iotrul"
+    error_message = "The IoT rule role must follow the name prefix."
+  }
+
+  assert {
+    condition     = one([for statement in data.aws_iam_policy_document.iot_rule.statement : statement if statement.sid == "WriteReadingToTable"]).resources == toset(["arn:aws:dynamodb:us-east-1:000000000000:table/fx-cf-pdn-ddb-tel"]) && one([for statement in data.aws_iam_policy_document.iot_rule.statement : statement if statement.sid == "WriteReadingToTable"]).actions == toset(["dynamodb:PutItem"])
+    error_message = "The rule role must put items to the telemetry table only."
+  }
+
+  assert {
+    condition     = one([for statement in data.aws_iam_policy_document.iot_rule.statement : statement if statement.sid == "QueueReadingAndFailures"]).resources == toset(["arn:aws:sqs:us-east-1:000000000000:fx-cf-pdn-sqs-thresh", "arn:aws:sqs:us-east-1:000000000000:fx-cf-pdn-iot-dlq"]) && one([for statement in data.aws_iam_policy_document.iot_rule.statement : statement if statement.sid == "QueueReadingAndFailures"]).actions == toset(["sqs:SendMessage"])
+    error_message = "The rule role must send messages to the threshold queue and the rule error queue only."
+  }
+
+  assert {
+    condition     = one([for statement in data.aws_iam_policy_document.iot_rule.statement : statement if statement.sid == "UseDataKeys"]).actions == toset(["kms:Decrypt", "kms:GenerateDataKey"])
+    error_message = "The rule role must use the data keys for Decrypt and GenerateDataKey only."
+  }
+}
+
+run "iot_rule_trust_names_the_service_account_and_rule" {
+  command = plan
+
+  assert {
+    condition     = one(one(data.aws_iam_policy_document.iot_rule_trust.statement).principals).identifiers == toset(["iot.amazonaws.com"])
+    error_message = "Only the IoT service may assume the rule role."
+  }
+
+  assert {
+    condition = (
+      anytrue([for condition in one(data.aws_iam_policy_document.iot_rule_trust.statement).condition : condition.variable == "aws:SourceAccount" && contains(condition.values, "000000000000")]) &&
+      anytrue([for condition in one(data.aws_iam_policy_document.iot_rule_trust.statement).condition : condition.variable == "aws:SourceArn" && contains(condition.values, "arn:aws:iot:us-east-1:000000000000:rule/fx_cf_pdn_iot_rul")])
+    )
+    error_message = "The rule role trust must be limited to this account and to the one topic rule of the prefix."
+  }
+}
+
+run "iot_logging_role_writes_only_to_the_iot_log_group" {
+  command = plan
+
+  assert {
+    condition     = aws_iam_role.iot_logging.name == "fx-cf-pdn-role-iotlog"
+    error_message = "The IoT logging role must follow the name prefix."
+  }
+
+  assert {
+    condition     = one(data.aws_iam_policy_document.iot_logging.statement).resources == toset(["arn:aws:logs:us-east-1:000000000000:log-group:AWSIotLogsV2", "arn:aws:logs:us-east-1:000000000000:log-group:AWSIotLogsV2:log-stream:*"]) && one(data.aws_iam_policy_document.iot_logging.statement).actions == toset(["logs:CreateLogStream", "logs:DescribeLogStreams", "logs:PutLogEvents"])
+    error_message = "The logging role must write only to streams of the AWSIotLogsV2 group."
+  }
+
+  assert {
+    condition     = one(one(data.aws_iam_policy_document.iot_logging_trust.statement).principals).identifiers == toset(["iot.amazonaws.com"]) && anytrue([for condition in one(data.aws_iam_policy_document.iot_logging_trust.statement).condition : condition.variable == "aws:SourceAccount"])
+    error_message = "Only the IoT service of this account may assume the logging role."
+  }
+}
+
+run "key_policy_admits_the_rule_role_on_telemetry_and_records_only" {
+  command = plan
+
+  assert {
+    condition     = anytrue([for statement in data.aws_iam_policy_document.key["records"].statement : statement.sid == "UseKey"]) && anytrue([for statement in data.aws_iam_policy_document.key["telemetry"].statement : statement.sid == "UseKey"])
+    error_message = "The telemetry and records key policies must admit the rule role."
+  }
+
+  assert {
+    condition     = !anytrue([for statement in data.aws_iam_policy_document.key["logs"].statement : statement.sid == "UseKey"]) && !anytrue([for statement in data.aws_iam_policy_document.key["personal"].statement : statement.sid == "UseKey"])
+    error_message = "The rule role must not be admitted on the other key classes."
+  }
+}
+
 run "no_secure_transport_policy_without_buckets" {
   command = plan
 

@@ -22,7 +22,7 @@ data "aws_iam_policy_document" "key" {
 
   # Only the named service roles of this environment use the key.
   dynamic "statement" {
-    for_each = length(lookup(var.key_user_arns, each.key, [])) > 0 ? [1] : []
+    for_each = length(local.key_users[each.key]) > 0 ? [1] : []
 
     content {
       sid       = "UseKey"
@@ -32,7 +32,7 @@ data "aws_iam_policy_document" "key" {
 
       principals {
         type        = "AWS"
-        identifiers = var.key_user_arns[each.key]
+        identifiers = local.key_users[each.key]
       }
     }
   }
@@ -288,4 +288,138 @@ data "aws_iam_policy_document" "secure_transport" {
       values   = ["1.2"]
     }
   }
+}
+
+# Service roles of AWS IoT Core (PD-073, ASM-400). They live here, with every other IAM role, so that the
+# security stack stays upstream of the workload stacks and no cycle forms. The telemetry-ingestion module takes
+# their ARNs as inputs. Both trust policies name the IoT service and are limited to this account (and, for the
+# rule role, to the one topic rule of this prefix) against the confused deputy problem.
+data "aws_iam_policy_document" "iot_rule_trust" {
+  provider = aws.project
+
+  statement {
+    sid     = "AssumeByIotTopicRule"
+    effect  = "Allow"
+    actions = ["sts:AssumeRole"]
+
+    principals {
+      type        = "Service"
+      identifiers = ["iot.amazonaws.com"]
+    }
+
+    condition {
+      test     = "StringEquals"
+      variable = "aws:SourceAccount"
+      values   = [local.account_id]
+    }
+
+    condition {
+      test     = "ArnEquals"
+      variable = "aws:SourceArn"
+      values   = [local.iot_topic_rule_arn]
+    }
+  }
+}
+
+data "aws_iam_policy_document" "iot_rule" {
+  provider = aws.project
+
+  statement {
+    sid       = "WriteReadingToTable"
+    effect    = "Allow"
+    actions   = ["dynamodb:PutItem"]
+    resources = [local.iot_table_arn]
+  }
+
+  statement {
+    sid       = "QueueReadingAndFailures"
+    effect    = "Allow"
+    actions   = ["sqs:SendMessage"]
+    resources = [local.iot_thresh_queue_arn, local.iot_error_queue_arn]
+  }
+
+  statement {
+    sid       = "UseDataKeys"
+    effect    = "Allow"
+    actions   = ["kms:Decrypt", "kms:GenerateDataKey"]
+    resources = [for class in local.iot_rule_key_classes : aws_kms_key.this[class].arn]
+  }
+}
+
+resource "aws_iam_role" "iot_rule" {
+  provider = aws.project
+
+  assume_role_policy   = data.aws_iam_policy_document.iot_rule_trust.json
+  description          = "Assumed by the AWS IoT topic rule to write readings to the table and the queues."
+  max_session_duration = 3600
+  name                 = "${var.name_prefix}-role-iotrul"
+
+  tags = merge(local.governance_tags, { Name = "${var.name_prefix}-role-iotrul" })
+}
+
+resource "aws_iam_role_policy" "iot_rule" {
+  provider = aws.project
+
+  name   = "iot-rule"
+  policy = data.aws_iam_policy_document.iot_rule.json
+  role   = aws_iam_role.iot_rule.id
+}
+
+data "aws_iam_policy_document" "iot_logging_trust" {
+  provider = aws.project
+
+  statement {
+    sid     = "AssumeByIotLogging"
+    effect  = "Allow"
+    actions = ["sts:AssumeRole"]
+
+    principals {
+      type        = "Service"
+      identifiers = ["iot.amazonaws.com"]
+    }
+
+    condition {
+      test     = "StringEquals"
+      variable = "aws:SourceAccount"
+      values   = [local.account_id]
+    }
+
+    condition {
+      test     = "ArnLike"
+      variable = "aws:SourceArn"
+      values   = [local.iot_source_arn]
+    }
+  }
+}
+
+# The telemetry-ingestion module creates the AWSIotLogsV2 group, encrypted with the logs key, so the role only
+# writes to streams of that group. The logs key policy admits the log service, so the role needs no key grant.
+data "aws_iam_policy_document" "iot_logging" {
+  provider = aws.project
+
+  statement {
+    sid       = "WriteIotLogs"
+    effect    = "Allow"
+    actions   = ["logs:CreateLogStream", "logs:DescribeLogStreams", "logs:PutLogEvents"]
+    resources = [local.iot_logs_group_arn, "${local.iot_logs_group_arn}:log-stream:*"]
+  }
+}
+
+resource "aws_iam_role" "iot_logging" {
+  provider = aws.project
+
+  assume_role_policy   = data.aws_iam_policy_document.iot_logging_trust.json
+  description          = "Assumed by AWS IoT Core to write its logs to the AWSIotLogsV2 log group."
+  max_session_duration = 3600
+  name                 = "${var.name_prefix}-role-iotlog"
+
+  tags = merge(local.governance_tags, { Name = "${var.name_prefix}-role-iotlog" })
+}
+
+resource "aws_iam_role_policy" "iot_logging" {
+  provider = aws.project
+
+  name   = "iot-logging"
+  policy = data.aws_iam_policy_document.iot_logging.json
+  role   = aws_iam_role.iot_logging.id
 }

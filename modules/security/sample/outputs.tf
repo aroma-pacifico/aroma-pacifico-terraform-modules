@@ -1,3 +1,13 @@
+output "iot_logging_role_arn" {
+  description = "ARN of the role of AWS IoT Core logging."
+  value       = module.security.iot_logging_role_arn
+}
+
+output "iot_rule_role_arn" {
+  description = "ARN of the role of the telemetry topic rule."
+  value       = module.security.iot_rule_role_arn
+}
+
 output "kms_key_arns" {
   description = "ARN of each customer-managed key, keyed by data class."
   value       = module.security.kms_key_arns

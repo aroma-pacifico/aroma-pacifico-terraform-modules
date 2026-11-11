@@ -41,4 +41,25 @@ locals {
   logs_encryption_arn    = "arn:${local.partition}:logs:${local.region}:${local.account_id}:*"
 
   protected_bucket_resources = flatten([for bucket_arn in var.protected_bucket_arns : [bucket_arn, "${bucket_arn}/*"]])
+
+  # Names that the telemetry-ingestion and inference-functions modules derive from the same prefix. The IAM
+  # grants below are built from these names, so they scope to the exact resources without a cross-stack input.
+  # A change to a naming rule in either module must be repeated here (see the README, "IoT service roles").
+  iot_table_arn        = "arn:${local.partition}:dynamodb:${local.region}:${local.account_id}:table/${var.name_prefix}-ddb-tel"
+  iot_error_queue_arn  = "arn:${local.partition}:sqs:${local.region}:${local.account_id}:${var.name_prefix}-iot-dlq"
+  iot_thresh_queue_arn = "arn:${local.partition}:sqs:${local.region}:${local.account_id}:${var.name_prefix}-sqs-thresh"
+  iot_topic_rule_arn   = "arn:${local.partition}:iot:${local.region}:${local.account_id}:rule/${replace(var.name_prefix, "-", "_")}_iot_rul"
+  iot_logs_group_arn   = "arn:${local.partition}:logs:${local.region}:${local.account_id}:log-group:AWSIotLogsV2"
+  iot_source_arn       = "arn:${local.partition}:iot:${local.region}:${local.account_id}:*"
+
+  # The topic rule writes to the telemetry table and error queue (telemetry key) and to the threshold queue
+  # (records key). Key policies grant no access through the account root (ASM-270), so the role is also named
+  # in the key policy of those two classes.
+  iot_rule_key_classes = toset(["telemetry", "records"])
+  key_users = {
+    for class in local.key_classes : class => concat(
+      lookup(var.key_user_arns, class, []),
+      contains(local.iot_rule_key_classes, class) ? [aws_iam_role.iot_rule.arn] : [],
+    )
+  }
 }

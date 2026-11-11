@@ -13,6 +13,16 @@ output "field_user_pool_id" {
   value       = aws_cognito_user_pool.field.id
 }
 
+output "iot_logging_role_arn" {
+  description = "ARN of the role that AWS IoT Core assumes to write its logs; the logging_role_arn input of the telemetry-ingestion module."
+  value       = aws_iam_role.iot_logging.arn
+}
+
+output "iot_rule_role_arn" {
+  description = "ARN of the role that the telemetry topic rule assumes; the rule_role_arn input of the telemetry-ingestion module."
+  value       = aws_iam_role.iot_rule.arn
+}
+
 output "kms_key_alias_names" {
   description = "Alias name of each key, keyed by data class."
   value       = { for class, alias in aws_kms_alias.this : class => alias.name }
