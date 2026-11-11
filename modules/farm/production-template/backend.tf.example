@@ -1,0 +1,4 @@
+# Shared workload state is configured by B02; never initialized by the offline sample.
+terraform {
+  backend "s3" {}
+}

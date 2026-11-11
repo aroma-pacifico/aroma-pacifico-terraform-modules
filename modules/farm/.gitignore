@@ -1,0 +1,4 @@
+# Child modules do not own provider locks or state.
+/.terraform.lock.hcl
+.terraform/
+*.tfstate*
