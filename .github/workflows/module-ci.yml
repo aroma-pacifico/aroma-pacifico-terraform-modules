@@ -76,13 +76,17 @@ jobs:
         run: |
           target="${{ matrix.target }}"
           stub=0
-          if grep -q 'configuration_aliases.*aws\.project' "$target/versions.tf" 2>/dev/null && ! grep -q 'provider "aws"' "$target"/*.tf 2>/dev/null; then
-            cat << 'EOF' > "$target/_ci_provider.tf"
+          aliases="$(grep -oE 'aws\.[A-Za-z_][A-Za-z0-9_]*' "$target/versions.tf" | sort -u || true)"
+          if [ -n "$aliases" ] && ! grep -q 'provider "aws"' "$target"/*.tf 2>/dev/null; then
+            for reference in $aliases; do
+              alias="${reference#aws.}"
+              cat << EOF >> "$target/_ci_provider.tf"
           provider "aws" {
-            alias  = "project"
+            alias  = "$alias"
             region = "us-east-1"
           }
           EOF
+            done
             stub=1
           fi
           terraform -chdir="$target" validate -no-color
