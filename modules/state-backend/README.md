@@ -1,6 +1,7 @@
 # State backend resource module
 
-Refs aroma-pacifico/aroma-pacifico-roadmap#22. IMPLEMENTED; VERIFIED OFFLINE only.
+Roadmap task B02 (aroma-pacifico/aroma-pacifico-roadmap#22). Plan-only: verified with native tests and
+plans against a local emulator, never applied.
 One invocation manages one environment's state bucket and customer-managed key.
 ADR-003 and ASM-213 assign this graph to B02. It creates no IAM roles, network,
 application resources, credentials, lock table or environment deployment loop.
@@ -27,11 +28,12 @@ application resources, credentials, lock table or environment deployment loop.
 | aws_context | Verified account_id, partition and region; supplied metadata is not account authentication |
 | key_administrators | Explicit same-account IAM role ARNs; no root/session/wildcard principals |
 | configuration_readers | Separate same-account read-only configuration roles for plan/review |
+| break_glass_role_arn_patterns | ARN patterns of the only principals allowed to schedule key deletion or disable the key; excepted from the untrusted-principal bucket deny |
 | domain_access | Map of domain to nonempty plan_role_arns and optional write_role_arns; empty writer set denies all state writes |
 | additional_tags | Matching Client/Project/Environment plus Owner/CostCenter, supplied by root; Name cannot be overridden |
 
-Plan and write identities are disjoint across domains. Key administration is
-separate from state data access. Actual roles and IAM identity policies belong
+Plan and write identities are disjoint across domains. Key administrators must not be plan
+roles; an apply role may administer the key and also write its own domain state. Actual roles and IAM identity policies belong
 to B06; this module does not fabricate them. The root must constrain the injected
 provider account/Region. Only that provider can establish the real account.
 
@@ -57,7 +59,9 @@ reference are denied. Public access blocking and disabled ACLs are independent
 controls, not substitutes for this policy.
 
 KMS administration uses explicit roles/actions, with no default root delegation,
-wildcard administrators, data decrypt grant, disable-key or deletion grant.
+wildcard administrators, data decrypt grant, disable-key or deletion grant. An explicit
+Deny on kms:ScheduleKeyDeletion and kms:DisableKey applies to every principal except the
+break-glass patterns (ASM-097, 30-day waiting period).
 Configuration readers get metadata-read actions only. Data-key/encryption/decryption
 grants require this account, S3 in the configured Region, and the exact domain
 state/lock ARN as encryption context. KMS Resource="*" means the key whose policy
@@ -78,8 +82,8 @@ The sample is an offline development root without an S3 backend. Its native
 tests mock providers, plan one graph and return future backend configuration
 for network/security/workload/state-backend. It does not initialize its own
 not-yet-created bucket, create shared local state, apply or migrate anything.
-The checked-in tfvars is deliberately incomplete; tests inject computed,
-synthetic identities. Never use fixture identities or the sample for deployment.
+The checked-in tfvars holds synthetic fixture identities. Never use them or the sample for
+deployment.
 
 Production root wiring is BLOCKED BY DEPENDENCY: B01/B03/B06 interfaces, a real
 reviewed SemVer release and the approved bootstrap execution/evidence procedure
@@ -89,36 +93,36 @@ Live bootstrap and state migration REQUIRE APPROVAL and remain prohibited here.
 
 ## Verification and layout
 
-Use Terraform >=1.14; child AWS >=6.0.0; sample pins ~>6.0.0 with a root-only
-6.0.0 lock. The child injects aws.project and has no provider/backend blocks.
-Validate through sample/, which injects aws.principal. Direct child-as-root
-validate lacks that alias and is not the intended composition.
+Use Terraform >=1.14 and AWS provider >=6.0.0. The child injects aws.project and has no
+provider or backend blocks. Validate through sample/, which injects aws.principal; validating
+the child alone needs a stub provider with that alias, as module CI does. No lockfile is
+committed (best practices section 8).
 
-Initialize child/sample with backend=false, then run terraform fmt -check -recursive,
-sample validate, child/sample terraform test and python scripts/verify-state-backend.py.
-Every native scenario is plan-mode and uses mock providers. The verifier checks
-exact eight-resource graphs, static deletion guards and 27 policy decisions using
-a deliberately limited evaluator. These are not real AWS plans or IAM proofs.
-Private plan artifacts and state must not be committed. No AWS credential is
-required for these checks; the public repository must never receive credentials.
-See [verification evidence](verification.md) for actual results and the retained
-LOW-severity S3 logging finding, which requires an approved external destination.
+```text
+terraform fmt -check -recursive
+terraform -chdir=modules/state-backend init -backend=false -input=false
+terraform -chdir=modules/state-backend test
+terraform -chdir=modules/state-backend/sample init -backend=false -input=false
+terraform -chdir=modules/state-backend/sample validate
+terraform -chdir=modules/state-backend/sample test
+```
+
+Every native scenario is plan-mode and uses mock providers. The sample also plans against a
+local AWS-compatible emulator (Floci) with test credentials and
+AWS_ENDPOINT_URL; the expected result is eight resources to add. Neither check is an IAM proof
+or a real AWS plan. Plans and state must not be committed. The public repository must never
+receive credentials. Trivy reports one LOW finding (AWS-0089, bucket access logging) because
+no audit destination is defined here.
 
 ```text
 modules/state-backend/
-|-- .gitignore, CHANGELOG.md, README.md
+|-- CHANGELOG.md, README.md
 |-- data.tf, locals.tf, main.tf, outputs.tf, providers.tf, variables.tf, versions.tf
-|-- sample/ (mock-only root, root lock, deliberately incomplete tfvars)
+|-- sample/ (mock-only root with synthetic tfvars)
 `-- tests/backend_unit_test.tftest.hcl
-scripts/verify-state-backend.py
 ```
 
-No bucket access-log destination or audit infrastructure is invented. B01/B06
-and the platform owner must integrate the approved audit controls. There is no
-replication, retention expiry or new bucket/KMS provisioning evidence. A code
-revert is the current rollback; it cannot restore, migrate or remove live state.
-
-
-## Final plan-only evidence, 2026-11-11
-
-Child: 18 passed. Complete sample/bootstrap: four passed, including three environment graphs with eight creates each. The private staged root independently executes the four scenarios and checks distinct account, bucket and KMS references. Twelve backend tuples and sixteen routing safeguards pass offline. Trivy retains LOW AWS-0089 because no logging destination contract exists. [Current evidence](../../docs/b02-final-delivery.md) supersedes older execution-blocker language for this confirmed plan-only delivery.
+No bucket access-log destination or audit infrastructure is invented. B01/B06 and the platform
+owner must integrate the approved audit controls. There is no replication, retention expiry or
+new bucket/KMS provisioning evidence. A code revert is the current rollback; it cannot restore,
+migrate or remove live state.
