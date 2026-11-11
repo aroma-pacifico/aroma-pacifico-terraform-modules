@@ -1,0 +1,262 @@
+name: Infracost cost impact
+
+on:
+  pull_request:
+    branches: [main]
+  push:
+    branches: [main]
+  workflow_dispatch:
+    inputs:
+      base_ref:
+        description: 'Existing repository ref/SHA for the before estimate'
+        required: false
+        type: string
+        default: 'HEAD~1'
+      head_ref:
+        description: 'Existing repository ref/SHA for the after estimate'
+        required: false
+        type: string
+        default: 'HEAD'
+
+permissions:
+  contents: read
+
+concurrency:
+  group: infracost-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  cost-impact:
+    name: Cost estimation
+    if: >-
+      github.actor != 'dependabot[bot]' &&
+      (github.event_name == 'push' ||
+       (github.event_name == 'workflow_dispatch' && github.ref == format('refs/heads/{0}', github.event.repository.default_branch)) ||
+       (github.event_name == 'pull_request' &&
+        github.event.pull_request.head.repo.full_name == github.repository))
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - name: Verify prerequisites and authorization
+        id: auth-check
+        env:
+          INFRACOST_METADATA_EGRESS_APPROVED: ${{ vars.INFRACOST_METADATA_EGRESS_APPROVED }}
+          INFRACOST_CLI_AUTHENTICATION_TOKEN: ${{ secrets.INFRACOST_CLI_TOKEN }}
+          INFRACOST_ORG: ${{ vars.INFRACOST_ORG }}
+        run: |
+          if [ "${INFRACOST_METADATA_EGRESS_APPROVED:-}" != "true" ] || [ -z "${INFRACOST_CLI_AUTHENTICATION_TOKEN:-}" ] || [ -z "${INFRACOST_ORG:-}" ]; then
+            echo "authorized=false" >> "$GITHUB_OUTPUT"
+            echo "## Infracost cost impact unavailable" >> "$GITHUB_STEP_SUMMARY"
+            echo "Cost estimate is unavailable because the Infracost API token or metadata egress approval (INFRACOST_METADATA_EGRESS_APPROVED=true) is not configured." >> "$GITHUB_STEP_SUMMARY"
+            echo "No cost estimate or zero-cost delta is claimed." >> "$GITHUB_STEP_SUMMARY"
+          else
+            echo "authorized=true" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Check out head revision
+        if: steps.auth-check.outputs.authorized == 'true'
+        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.2.2
+        with:
+          ref: ${{ github.event_name == 'pull_request' && github.event.pull_request.head.sha || github.event_name == 'push' && github.sha || inputs.head_ref }}
+          path: head
+          fetch-depth: 0
+          persist-credentials: false
+
+      - name: Check out base revision
+        if: steps.auth-check.outputs.authorized == 'true'
+        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.2.2
+        with:
+          ref: ${{ github.event_name == 'pull_request' && github.event.pull_request.base.sha || github.event_name == 'push' && (github.event.before != '0000000000000000000000000000000000000000' && github.event.before || 'HEAD~1') || inputs.base_ref }}
+          path: base
+          fetch-depth: 0
+          persist-credentials: false
+
+      - name: Install checksum-pinned Infracost CLI v2
+        if: steps.auth-check.outputs.authorized == 'true'
+        shell: bash
+        run: |
+          set -euo pipefail
+          bin_dir="$RUNNER_TEMP/infracost-bin"
+          mkdir -p "$bin_dir"
+          curl --fail --silent --show-error --location --retry 3 \
+            https://github.com/infracost/cli/releases/download/v2.18.3/infracost-linux-amd64.tar.gz \
+            --output "$bin_dir/infracost.tar.gz"
+          (cd "$bin_dir" && echo '0950674d6e19eee5c492e59b415f3078c7c6b72421f940543c6cfa884692874e  infracost.tar.gz' | sha256sum --check --strict)
+          tar -xzf "$bin_dir/infracost.tar.gz" -C "$bin_dir"
+          chmod +x "$bin_dir/infracost"
+          "$bin_dir/infracost" --version
+
+      - name: Compare source costs
+        if: steps.auth-check.outputs.authorized == 'true'
+        shell: bash
+        env:
+          INFRACOST_METADATA_EGRESS_APPROVED: ${{ vars.INFRACOST_METADATA_EGRESS_APPROVED }}
+          INFRACOST_ORG: ${{ vars.INFRACOST_ORG }}
+          INFRACOST_CLI_AUTHENTICATION_TOKEN: ${{ secrets.INFRACOST_CLI_TOKEN }}
+        run: |
+          set -euo pipefail
+          bin="$RUNNER_TEMP/infracost-bin/infracost"
+          summary_file="$RUNNER_TEMP/infracost-summary.md"
+          
+          base_sha="$(git -C base rev-parse HEAD 2>/dev/null || echo 'unknown')"
+          head_sha="$(git -C head rev-parse HEAD 2>/dev/null || echo 'unknown')"
+          
+          if [ -f "head/infracost.yml" ]; then
+            cp "head/infracost.yml" "base/infracost.yml"
+          fi
+          
+          temp_dir="$RUNNER_TEMP/infracost-work"
+          mkdir -p "$temp_dir/config" "$temp_dir/cache"
+          
+          export XDG_CONFIG_HOME="$temp_dir/config"
+          export XDG_CACHE_HOME="$temp_dir/cache"
+          export GIT_TERMINAL_PROMPT=0
+          export GIT_ASKPASS=/bin/false
+          
+          base_json="$temp_dir/base.json"
+          head_json="$temp_dir/head.json"
+          
+          echo "Scanning base revision ($base_sha)..."
+          (cd base && "$bin" scan . --org "$INFRACOST_ORG" --currency USD --json --no-color --access-token-use-cache=false) > "$base_json" || {
+            echo "::warning::Base scan returned no data or previous configuration"
+            echo '{"projects":[]}' > "$base_json"
+          }
+          
+          echo "Scanning head revision ($head_sha)..."
+          (cd head && "$bin" scan . --org "$INFRACOST_ORG" --currency USD --json --no-color --access-token-use-cache=false) > "$head_json" || {
+            echo "::warning::Head scan failed"
+            echo '{"projects":[]}' > "$head_json"
+          }
+          
+          BASE_JSON="$base_json" HEAD_JSON="$head_json" SUMMARY_FILE="$summary_file" BASE_SHA="$base_sha" HEAD_SHA="$head_sha" python3 - << 'PYEOF'
+          import json, os, sys
+          from decimal import Decimal, InvalidOperation
+
+          base_file = os.environ.get("BASE_JSON", "")
+          head_file = os.environ.get("HEAD_JSON", "")
+          summary_file = os.environ.get("SUMMARY_FILE", "")
+          base_sha = os.environ.get("BASE_SHA", "unknown")[:7]
+          head_sha = os.environ.get("HEAD_SHA", "unknown")[:7]
+
+          def load_doc(path):
+              if not path or not os.path.isfile(path):
+                  return {}
+              try:
+                  with open(path, "r", encoding="utf-8") as f:
+                      return json.load(f)
+              except Exception:
+                  return {}
+
+          def parse_costs(doc):
+              costs = {}
+              if not isinstance(doc, dict):
+                  return costs
+              for proj in doc.get("projects", []):
+                  name = proj.get("name") or proj.get("project_name") or proj.get("displayName") or "unknown"
+                  total = None
+                  if "breakdown" in proj and isinstance(proj["breakdown"], dict) and proj["breakdown"].get("totalMonthlyCost") is not None:
+                      try:
+                          total = Decimal(str(proj["breakdown"]["totalMonthlyCost"]))
+                      except InvalidOperation:
+                          total = None
+                  elif proj.get("totalMonthlyCost") is not None:
+                      try:
+                          total = Decimal(str(proj["totalMonthlyCost"]))
+                      except InvalidOperation:
+                          total = None
+                  
+                  if total is None:
+                      subtotal = Decimal("0")
+                      for res in proj.get("resources", []):
+                          if res.get("is_supported", True):
+                              for comp in res.get("cost_components", []):
+                                  v = comp.get("total_monthly_cost")
+                                  if v is not None:
+                                      try:
+                                          subtotal += Decimal(str(v))
+                                      except InvalidOperation:
+                                          pass
+                              for sub in res.get("subresources", []):
+                                  for comp in sub.get("cost_components", []):
+                                      v = comp.get("total_monthly_cost")
+                                      if v is not None:
+                                          try:
+                                              subtotal += Decimal(str(v))
+                                          except InvalidOperation:
+                                              pass
+                      total = subtotal
+                  costs[name] = total
+              return costs
+
+          base_doc = load_doc(base_file)
+          head_doc = load_doc(head_file)
+          base_costs = parse_costs(base_doc)
+          head_costs = parse_costs(head_doc)
+
+          all_projects = sorted(set(base_costs.keys()) | set(head_costs.keys()))
+
+          if not all_projects:
+              out = [
+                  "## Infracost cost impact unavailable",
+                  "",
+                  "Infracost scan returned no projects or cost data. Raw scanner diagnostics are kept private.",
+                  "No successful cost estimate or zero-cost delta is claimed.",
+                  ""
+              ]
+          else:
+              out = [
+                  "## Infracost cost impact",
+                  "",
+                  "Supported-resource estimate in USD/month (partial coverage, not enterprise TCO).",
+                  "",
+                  f"Base `{base_sha}` -> Head `{head_sha}`",
+                  "",
+                  "| Sample Root | Before ($/mo) | After ($/mo) | Delta ($/mo) |",
+                  "|---|---:|---:|---:|",
+              ]
+              total_before = Decimal("0")
+              total_after = Decimal("0")
+              for p in all_projects:
+                  b = base_costs.get(p, Decimal("0"))
+                  a = head_costs.get(p, Decimal("0"))
+                  d = a - b
+                  total_before += b
+                  total_after += a
+                  d_str = f"+${d:,.2f}" if d > 0 else f"-${abs(d):,.2f}" if d < 0 else "$0.00"
+                  out.append(f"| `{p}` | ${b:,.2f} | ${a:,.2f} | {d_str} |")
+              
+              tot_d = total_after - total_before
+              tot_d_str = f"+${tot_d:,.2f}" if tot_d > 0 else f"-${abs(tot_d):,.2f}" if tot_d < 0 else "$0.00"
+              out.append(f"| **Total** | **${total_before:,.2f}** | **${total_after:,.2f}** | **{tot_d_str}** |")
+              out.append("")
+              out.append("Prices and policies are service-supplied at scan time by Infracost. No AWS credentials, state, apply, or live resources were used.")
+              out.append("")
+
+          with open(summary_file, "w", encoding="utf-8") as f:
+              f.write("\n".join(out))
+          PYEOF
+
+      - name: Publish cost impact to the job summary
+        if: always() && steps.auth-check.outputs.authorized == 'true'
+        shell: bash
+        run: |
+          summary_file="$RUNNER_TEMP/infracost-summary.md"
+          if [ -f "$summary_file" ]; then
+            cat "$summary_file" >> "$GITHUB_STEP_SUMMARY"
+          else
+            echo "## Infracost cost impact unavailable" >> "$GITHUB_STEP_SUMMARY"
+            echo "Cost estimate could not be generated. No successful cost estimate or zero-cost delta is claimed." >> "$GITHUB_STEP_SUMMARY"
+          fi
+
+  untrusted-notice:
+    name: Untrusted contribution notice
+    if: >-
+      github.actor == 'dependabot[bot]' ||
+      (github.event_name == 'pull_request' &&
+       github.event.pull_request.head.repo.full_name != github.repository)
+    runs-on: ubuntu-latest
+    steps:
+      - name: Explain why cost evidence is unavailable
+        run: |
+          echo "## Infracost cost impact unavailable" >> "$GITHUB_STEP_SUMMARY"
+          echo "This untrusted contribution receives no pricing credentials. A maintainer must review the change on a trusted branch. No cost estimate was generated." >> "$GITHUB_STEP_SUMMARY"
