@@ -511,11 +511,12 @@ Full standard: TERRAFORM-IAC-BEST-PRACTICES.md at the project root.
 ### Before saying you are done
 - `terraform fmt -recursive` and `terraform validate` both run clean.
 - Show the plan. Call out every destroy and every replacement explicitly.
+- Verify Infracost CLI v2 cost estimation delta in CI job summary (`pc-iac-027.md`).
 - If validate rejects an argument, the provider is right and you are wrong.
   Read the schema. Do not guess alternative spellings.
 
 ### Never
-- `terraform apply` or `terraform destroy`. You plan; a human applies.
+- `terraform apply` or `terraform destroy`. Scope stops at `terraform plan`; no cloud resource is ever deployed.
 - `terraform state rm` / `state mv` / `import` without authorisation in the moment.
 - Widening an IAM policy to clear a permissions error.
 - Opening anything to `0.0.0.0/0` unless asked for in those words.
@@ -554,7 +555,24 @@ Tool notes worth having:
 - **Trivy scans both container images and IaC files.** For this project that is a convenient consolidation: the Trivy required by the security area covers Terraform misconfiguration with the same tool and the same workflow.
 - **Checkov has the deepest Terraform-specific coverage** — 1,000+ policies with graph-based cross-resource analysis. Trivy is broader; Checkov is deeper. Running both is common and they are not redundant.
 - **tflint is a linter, not a security scanner.** Its security rules are shallow by design. Run it *alongside* a scanner, never instead of one.
-- **Infracost** attaches a cost delta to the plan. On a credit-limited AWS account that is a meaningful gate, not a nicety.
+- **Infracost** attaches a monthly cost estimate and delta to the plan. Every IaC pipeline (CI on pull requests, and the CD promotion with production approval) estimates monthly cost with Infracost CLI v2. It publishes the before, after, and delta for each root stack directly to the GitHub Actions job summary (`$GITHUB_STEP_SUMMARY`), and the production approval displays this cost delta immediately adjacent to the speculative plan.
+  - **Secret**: `INFRACOST_CLI_TOKEN`, a CLI v2 token of the Infracost organization `aroma-pacifico`, mapped to `INFRACOST_CLI_AUTHENTICATION_TOKEN`. Legacy `ico-` API keys are strictly rejected.
+  - **Repository variables**: `INFRACOST_ORG=aroma-pacifico` and `INFRACOST_METADATA_EGRESS_APPROVED=true` (pre-configured in `aroma-pacifico-infrastructure` and `aroma-pacifico-terraform-modules`).
+  - **Credential-free operation**: The cost estimate requires no cloud credentials (no AWS keys, no Azure credentials, no IAM roles). If the token is absent (e.g. forks, Dependabot), the step outputs "estimate unavailable" and claims no number.
+  - **Immutability and pinning**: The Infracost CLI binary is checksum-pinned, and GitHub Actions are pinned by commit SHA.
+  - **Notifications**: External chat (Slack) notifications are not required; "notify" refers to release-note templates.
+  - Binding specification: `standards/iac-rules/pc-iac-027.md` (roadmap issues #31 B11, #32 B12, and #42 G02).
+
+### Academic Plan-Only Scope
+
+The professor confirmed that the Aroma Pacífico project stops at `terraform plan`. Nothing is deployed and no cloud resource is created; `apply` and `destroy` are never run.
+
+Pipelines must nonetheless prove that the code would work if it were deployed:
+1. Automated formatting validation (`terraform fmt -check -recursive`).
+2. Syntax, provider schema, and type validation (`terraform validate`).
+3. Static linting and security policy scans (`tflint`, Trivy, Checkov).
+4. Automated plan-mode unit tests (`.tftest.hcl`).
+5. A reviewable speculative execution plan (`terraform plan`) and Infracost cost delta.
 
 Everything above is safe to run on a pull request. `terraform plan` against real state requires credentials, so it runs with the pipeline identity, not the agent's.
 
@@ -619,7 +637,9 @@ Baseline requirements for the IaC repository created in task B01. Every referenc
 | Audit logging | Policy rule | Required | Mandatory control plane and access audit logging (`pc-iac-020.md`) |
 | No environment-specific defaults | Standard | Required | Forbid hardcoded account IDs, ARNs, or CIDRs in module defaults |
 | `moved` blocks on refactor | Required | Required | Mandatory `moved` blocks for refactoring without destroy |
-| Agent rules for Terraform | Required | Required | Enforce binding rules in `AGENTS.md` and `pc-iac-001` through `pc-iac-026` |
+| Automated cost estimation | Infracost CLI v2 | Required | PR CI and CD promotion job summary cost deltas (`pc-iac-027.md`) |
+| Academic plan-only scope | Plan-only proof | Required | Deployments, apply, and destroy prohibited; proof via validation and plan |
+| Agent rules for Terraform | Required | Required | Enforce binding rules in `AGENTS.md` and `pc-iac-001` through `pc-iac-027` |
 
 Two architectural principles govern this adoption:
 
