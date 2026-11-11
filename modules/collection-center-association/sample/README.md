@@ -1,3 +1,3 @@
-# Mock-only association root
+# Association sample root
 
-This complete local root injects workload and hub providers into one reusable association. Required inputs are defined in `variables.tf`; synthetic values are generated only in `tests/association_sample_test.tftest.hcl`. Run backend-disabled init, validate, and `terraform test`. No standalone account plan or local persistent state is part of this example. See the [module contract](../README.md).
+This complete local root injects the workload and hub providers into one reusable association. Required inputs are defined in `variables.tf`; `terraform.tfvars` holds synthetic fixtures so that the root plans against the Floci emulator (PC-IAC-028) and in the Infracost scan, and the native tests generate their own values. Run backend-disabled init, validate, `terraform test` and a speculative `terraform plan` against Floci. No `apply` and no local persistent state. See the [module contract](../README.md).
