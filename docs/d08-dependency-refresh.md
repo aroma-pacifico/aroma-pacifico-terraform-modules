@@ -7,7 +7,7 @@ migration, unlock or Terraform state mutation was used.
 
 ## Fresh sources and governance
 
-`gh auth status` succeeds as `cajire05` outside the sandbox. The repository API
+`gh auth status` succeeds for the JR2 account outside the sandbox. The repository API
 confirms `pull: true` and `push: true` on infrastructure, modules and roadmap.
 The sandbox's invalid-token diagnostic was an identity/access limitation, not
 the current GitHub account status. Branches and all-state PR listings were

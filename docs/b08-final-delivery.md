@@ -104,7 +104,7 @@ Earlier failures are retained in local delivery logs. A green mock plan is not d
 
 ## Independent review
 
-SR1 @EstebanGZam is the named B13 co-owner and appropriate scope/acceptance reviewer; SR2 @tomoewinds owns B07/B09 and relevant architecture decisions. Final review/closure follows the human lead or designated independent reviewer in AGENTS.md. No review, release, waiver or approval is invented. Existing long-lived feature branches are preserved at the user's explicit instruction. The review exceeds the approximate 400-line target because complete source, fixtures, negative tests and evidence are included in atomic commits.
+SR1 is the named B13 co-owner and appropriate scope/acceptance reviewer; SR2 owns B07/B09 and relevant architecture decisions. Final review/closure follows the human lead or designated independent reviewer in AGENTS.md. No review, release, waiver or approval is invented. Existing long-lived feature branches are preserved at the user's explicit instruction. The review exceeds the approximate 400-line target because complete source, fixtures, negative tests and evidence are included in atomic commits.
 
 
 [Actual terminal verification excerpts](b08-terminal-evidence.md) accompany this report.
