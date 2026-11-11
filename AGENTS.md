@@ -35,7 +35,7 @@ This file is the single normative constitution for how work is produced in this 
 6. **Atomic Conventional Commits.** Every commit must follow `<type>(<scope>): <lowercase imperative subject>` with a mandatory `Refs #<issue>` footer. Commit incrementally as you go.
 7. **Agent publishing boundary.** Agents commit locally and may push only their own assigned feature branch to open a PR to `main`. Agents never push to `main`, never force-push, and never create repositories. Implementer agents never merge. The designated reviewer agent, which runs on a different AI provider than the implementer, reviews the pull request and squash-merges it when it approves and every check is green, following the review protocol. A pull request that needs a business decision, weakens CI checks or deletes out-of-scope content goes to the human lead instead. The reviewer may delete the merged head branch. The human lead can still review or merge at any time.
 8. **Repository model.** Concern separation across dedicated organization repositories. Terraform code (`.tf`) belongs strictly in `aroma-pacifico-terraform-modules` and `aroma-pacifico-infrastructure`; no `.tf` files in any other repository.
-9. **Binding IaC rules.** The 27 reference module rules in `standards/iac-rules/` (`pc-iac-001.md` through `pc-iac-027.md`) and `standards/terraform-iac-best-practices.md` are binding for all Terraform work. Renaming a resource requires a `moved` block. Automated Infracost cost estimation in CI/CD pipelines is mandatory per `pc-iac-027.md`.
+9. **Binding IaC rules.** The 28 reference module rules in `standards/iac-rules/` (`pc-iac-001.md` through `pc-iac-028.md`) and `standards/terraform-iac-best-practices.md` are binding for all Terraform work. Renaming a resource requires a `moved` block. Automated Infracost cost estimation in CI/CD pipelines is mandatory per `pc-iac-027.md`, and credential-free plan execution against the Floci AWS emulator is mandatory per `pc-iac-028.md`.
 10. **Show your verification.** "Done" requires running formatting, validation, and verification checks and showing the actual terminal output. Never state something works without showing the verification evidence.
 
 ---
@@ -198,7 +198,7 @@ Use `.github/pull_request_template.md`:
 ## 8. Terraform and Infrastructure as Code
 
 Detailed standards live in `standards/terraform-iac-best-practices.md` and `standards/iac-rules/`.
-The 27 `pc-iac` rules (`standards/iac-rules/pc-iac-001.md` through `pc-iac-027.md`) are binding for every Terraform change.
+The 28 `pc-iac` rules (`standards/iac-rules/pc-iac-001.md` through `pc-iac-028.md`) are binding for every Terraform change.
 
 ### Key Enforceable Rules:
 - **Reference modules**: Follow the mandatory layout defined in `pc-iac-001.md` (`main.tf`, `variables.tf`, `outputs.tf`, `versions.tf`, `README.md`).
@@ -212,6 +212,7 @@ The 27 `pc-iac` rules (`standards/iac-rules/pc-iac-001.md` through `pc-iac-027.m
 - **Domain separation**: Separate networking, compute, security, and data into distinct lifecycle domains (`pc-iac-022.md`).
 - **Testing**: Plan-mode unit tests (`.tftest.hcl`) for reference modules (`pc-iac-018.md`).
 - **Automated cost estimation (`pc-iac-027.md`)**: Every IaC pipeline (PR CI and CD promotion with production approval) estimates monthly cost with Infracost CLI v2. Publishes before, after, and delta breakdowns for each root in the job summary, and production approvals display cost next to the plan. Uses secret `INFRACOST_CLI_TOKEN` passed as `INFRACOST_CLI_AUTHENTICATION_TOKEN`, with variables `INFRACOST_ORG=aroma-pacifico` and `INFRACOST_METADATA_EGRESS_APPROVED=true`. Legacy `ico-` keys are rejected. Needs no cloud credentials; missing token outputs "estimate unavailable". Checksum-pinned CLI and SHA-pinned actions. Slack notifications are not required.
+- **AWS emulation with Floci (`pc-iac-028.md`)**: The faculty advisor accepted Floci as the plan target in lieu of an AWS account. Pinned image digest `floci/floci@sha256:5ee85db604c4aa74ac76e07ea5cc83086f37bb472bf3dbb97e34019e48efae9c` (Floci 2.4.0). Standard environment `AWS_ENDPOINT_URL=http://localhost:4566`, `AWS_ACCESS_KEY_ID=test`, `AWS_SECRET_ACCESS_KEY=test`, `AWS_REGION=us-east-1`. Zero Terraform code modifications required (honored natively by AWS provider v6). Executed in local Docker or CI service container with `TF_PLUGIN_CACHE_DIR` caching. S3 remote-state evidence initialized via `aws s3 mb` against Floci and dynamic `-backend-config` flags (`use_path_style=true`, `use_lockfile=true`). Plan-only boundary applies strictly; `apply` and `destroy` are forbidden everywhere.
 - **Plan-only scope and pipeline proof**: As confirmed by the professor, the project stops at `terraform plan`. Nothing is deployed and no cloud resource is created; `apply` and `destroy` are never run. Pipelines prove code correctness via formatting, validation, tests (`.tftest.hcl`), security scans, and reviewable speculative plans.
 - **Identity separation**: Agents operate with plan-only identity; apply is strictly prohibited (§4).
 
@@ -247,6 +248,7 @@ A task is not done until every applicable criterion is satisfied and verificatio
 - [ ] Security scanners (`trivy`/`checkov`) clean or findings justified.
 - [ ] Plan-only evidence produced; destroys and replacements explicitly called out.
 - [ ] Infracost CLI v2 cost estimation delta published to job summary (`pc-iac-027.md`).
+- [ ] Executable plan generated against Floci emulator without cloud credentials (`pc-iac-028.md`).
 - [ ] `moved` blocks present for any relocated or renamed resource.
 
 **Documentation and Diagram Changes:**
