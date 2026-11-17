@@ -80,6 +80,7 @@ Refs #<issue-number>
 - Focus on **why** the change was made and any technical trade-offs, rather than repeating what files changed.
 - Wrap body text at 72 characters.
 - **Refs footer is required**: Reference the issue number as `Refs #<issue>` (or `Closes #<issue>`).
+- **No AI co-authorship or tool attribution**: Per [`standards/no-ai-coauthorship.md`](no-ai-coauthorship.md), commits and pull requests must never carry `Co-authored-by:` trailers naming AI tools (`Claude`, `Anthropic`, `Codex`, `OpenAI`, `ChatGPT`, `GPT`, `Gemini`, `Google AI`, `Antigravity`, `Copilot`, `Cursor`, `Devin`) or their `noreply` addresses, `Generated with` footers, or AI author/committer identities. Human `Co-authored-by:` trailers stay allowed. Enable the local guard with `git config core.hooksPath .githooks`.
 
 ---
 

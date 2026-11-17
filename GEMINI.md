@@ -49,7 +49,7 @@ Emojis are strictly prohibited across all code, comments, documentation, commit 
 |---|---|---|
 | Documentation Agent | `.agents/skills/doc-agent/SKILL.md` | `standards/documentation.md` |
 | Diagram Agent | `.agents/skills/diagram-agent/SKILL.md` | `standards/diagrams.md` |
-| Git Agent | `.agents/skills/git-agent/SKILL.md` | `standards/git-workflow.md` |
+| Git Agent | `.agents/skills/git-agent/SKILL.md` | `standards/git-workflow.md`, `standards/no-ai-coauthorship.md` |
 | IaC & Reference Modules | — | `standards/terraform-iac-best-practices.md`, `standards/iac-rules/` |
 
 ---
