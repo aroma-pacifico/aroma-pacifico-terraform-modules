@@ -47,12 +47,18 @@ Refs #<issue-number>
 - **Subject**: Imperative mood, lowercase, no trailing period, maximum 72 characters.
 - **Body**: Explains *why* the change was made and technical trade-offs.
 - **`Refs #`**: Mandatory footer referencing the issue number.
+- **No AI co-authorship or tool attribution**: Commits and PRs must never include `Co-authored-by:` trailers for AI tools (`Claude`, `Anthropic`, `Codex`, `OpenAI`, `ChatGPT`, `GPT`, `Gemini`, `Google AI`, `Antigravity`, `Copilot`, `Cursor`, `Devin`) or their `noreply` addresses, `Generated with` footers, or AI tool author/committer identities (`standards/no-ai-coauthorship.md`). Human `Co-authored-by:` trailers remain allowed.
 - **Breaking changes**: `feat(scope)!:` or `BREAKING CHANGE:` in the footer.
 - **Atomic staging**: Stage and commit incrementally as units of work are completed.
 
 To use the commit template automatically:
 ```bash
 git config commit.template .gitmessage
+```
+
+To enable the local commit-message guard (`.githooks/commit-msg`), which rejects AI co-author trailers and attribution footers:
+```bash
+git config core.hooksPath .githooks
 ```
 
 ---

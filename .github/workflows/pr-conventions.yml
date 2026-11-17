@@ -111,6 +111,46 @@ jobs:
 
           exit "$fail"
 
+      - name: No AI co-authorship or tool attribution in PR title or body
+        env:
+          TITLE: ${{ github.event.pull_request.title }}
+          BODY: ${{ github.event.pull_request.body }}
+        run: |
+          python3 -c '
+          import os, re, sys
+
+          title = os.environ.get("TITLE") or ""
+          body = os.environ.get("BODY") or ""
+
+          ai_names = r"(?:claude(?:\s+code)?|anthropic|codex|openai|chatgpt|gpt(?:\b|-[0-9])|gemini|google\s+ai|antigravity|github\s+copilot|copilot|cursor|devin)"
+          ai_domains = r"(?:anthropic\.com|openai\.com|cursor\.sh|cognition\.ai|devin\.ai)"
+          ai_noreply = r"(?:noreply[@](?:anthropic\.com|openai\.com|google\.com|cursor\.sh|cognition\.ai|devin\.ai|github\.com)|[a-z0-9._%+-]*?(?:claude|anthropic|codex|openai|chatgpt|gemini|antigravity|copilot|cursor|devin)[a-z0-9._%+-]*[@][a-z0-9.-]+\.[a-z]{2,}|[a-z0-9._%+-]+[@]" + ai_domains + r")"
+
+          coauthor_re = re.compile(
+              r"^\s*(?:[-*>]\s*)?(?:co-authored-by|assisted-by)\s*:\s*.*?(?:\b" + ai_names + r"\b|" + ai_noreply + r")",
+              re.IGNORECASE,
+          )
+          footer_re = re.compile(
+              r"(?:\U0001f916\s*generated\s+(?:with|by)\b|\bgenerated\s+(?:with|by)\s+\[?\b" + ai_names + r"\b)",
+              re.IGNORECASE,
+          )
+
+          failed = False
+          for surface_name, text in [("PR title", title), ("PR body", body)]:
+              for line in text.splitlines():
+                  if coauthor_re.search(line) or footer_re.search(line):
+                      print(f"::error::{surface_name} contains forbidden AI attribution on line: {line.strip()}", file=sys.stderr)
+                      failed = True
+
+          if failed:
+              print("How to fix (standards/no-ai-coauthorship.md):", file=sys.stderr)
+              print("  Edit the pull request title or description (gh pr edit <n> --body-file ...) to remove AI Co-authored-by trailers and Generated with footers.", file=sys.stderr)
+              print("  Human Co-authored-by trailers remain allowed.", file=sys.stderr)
+              sys.exit(1)
+
+          print("No AI co-authorship or tool attribution found in PR title or body.")
+          '
+
   commits:
     name: Commit messages follow Conventional Commits and zero-emoji rule
     runs-on: ubuntu-latest
@@ -140,10 +180,30 @@ jobs:
           emoji_pattern = re.compile(r"[\U00010000-\U0010ffff\u2600-\u27ff\u2300-\u23ff\u2b50-\u2b55\u200d\ufe0f]")
           spanish_words = re.compile(r"\b(el|la|los|las|del|una|para|con|que|por|como|añadir|agregar|corregir|actualizar|eliminar)\b", re.IGNORECASE)
 
+          ai_names = r"(?:claude(?:\s+code)?|anthropic|codex|openai|chatgpt|gpt(?:\b|-[0-9])|gemini|google\s+ai|antigravity|github\s+copilot|copilot|cursor|devin)"
+          ai_domains = r"(?:anthropic\.com|openai\.com|cursor\.sh|cognition\.ai|devin\.ai)"
+          ai_noreply = r"(?:noreply[@](?:anthropic\.com|openai\.com|google\.com|cursor\.sh|cognition\.ai|devin\.ai|github\.com)|[a-z0-9._%+-]*?(?:claude|anthropic|codex|openai|chatgpt|gemini|antigravity|copilot|cursor|devin)[a-z0-9._%+-]*[@][a-z0-9.-]+\.[a-z]{2,}|[a-z0-9._%+-]+[@]" + ai_domains + r")"
+
+          coauthor_re = re.compile(
+              r"^\s*(?:co-authored-by|assisted-by)\s*:\s*.*?(?:\b" + ai_names + r"\b|" + ai_noreply + r")",
+              re.IGNORECASE,
+          )
+          footer_re = re.compile(
+              r"(?:\U0001f916\s*generated\s+(?:with|by)\b|\bgenerated\s+(?:with|by)\s+\[?\b" + ai_names + r"\b)",
+              re.IGNORECASE,
+          )
+          author_name_re = re.compile(r"\b" + ai_names + r"\b", re.IGNORECASE)
+          author_email_re = re.compile(r"(?:^|<)" + ai_noreply + r"(?:>|$)", re.IGNORECASE)
+
           failed = False
+          ai_failed = False
           for c in commits:
               subject = subprocess.check_output(["git", "log", "-1", "--format=%s", c]).decode("utf-8").strip()
               body = subprocess.check_output(["git", "log", "-1", "--format=%B", c]).decode("utf-8")
+              author_name = subprocess.check_output(["git", "log", "-1", "--format=%an", c]).decode("utf-8").strip()
+              author_email = subprocess.check_output(["git", "log", "-1", "--format=%ae", c]).decode("utf-8").strip()
+              committer_name = subprocess.check_output(["git", "log", "-1", "--format=%cn", c]).decode("utf-8").strip()
+              committer_email = subprocess.check_output(["git", "log", "-1", "--format=%ce", c]).decode("utf-8").strip()
 
               if not re.match(types_pattern, subject):
                   print(f"::error::Commit {c[:7]} subject does not match Conventional Commits: {subject}")
@@ -174,7 +234,30 @@ jobs:
                   print(f"::error::Commit {c[:7]} missing mandatory issue reference footer (Refs #<issue>).")
                   failed = True
 
+              for line in body.splitlines():
+                  if coauthor_re.search(line) or footer_re.search(line):
+                      print(f"::error::Commit {c[:7]} contains forbidden AI attribution on line: {line.strip()}")
+                      failed = True
+                      ai_failed = True
+
+              if author_name_re.search(author_name) or author_email_re.search(author_email):
+                  print(f"::error::Commit {c[:7]} has forbidden AI author identity: {author_name} <{author_email}>")
+                  failed = True
+                  ai_failed = True
+
+              if author_name_re.search(committer_name) or author_email_re.search(committer_email):
+                  print(f"::error::Commit {c[:7]} has forbidden AI committer identity: {committer_name} <{committer_email}>")
+                  failed = True
+                  ai_failed = True
+
+          if ai_failed:
+              print("How to fix AI attribution errors (standards/no-ai-coauthorship.md):")
+              print("  1. Amend the latest commit: git commit --amend (remove Co-authored-by / Generated with lines)")
+              print("  2. Or rewrite branch commits: git rebase -i origin/main")
+              print("  3. Reset AI author/committer identity: git config --worktree user.name \"<Name>\" && git config --worktree user.email \"<email>\" && git commit --amend --reset-author --no-edit")
+              print("  4. Enable local hook: git config core.hooksPath .githooks")
+
           if failed:
               sys.exit(1)
-          print(f"All {len(commits)} commits passed convention checks.")
+          print(f"All {len(commits)} commits passed convention and no-AI-attribution checks.")
           ' "$commits"

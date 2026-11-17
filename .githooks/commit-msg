@@ -1,0 +1,80 @@
+#!/usr/bin/env bash
+# ==============================================================================
+# .githooks/commit-msg
+# Local commit-message guard forbidding AI co-authorship trailers, AI attribution
+# footers, and AI tool author/committer identities (standards/no-ai-coauthorship.md).
+#
+# Enable in a repository clone with:
+#   git config core.hooksPath .githooks
+# ==============================================================================
+
+set -euo pipefail
+
+MSG_FILE="${1:-}"
+if [ -z "$MSG_FILE" ] || [ ! -f "$MSG_FILE" ]; then
+  echo "ERROR: commit-msg hook requires a path to the commit message file." >&2
+  exit 1
+fi
+
+python3 - "$MSG_FILE" << 'PY'
+import re
+import subprocess
+import sys
+
+msg_file = sys.argv[1]
+with open(msg_file, "r", encoding="utf-8", errors="replace") as fh:
+    raw_lines = fh.read().splitlines()
+
+# Ignore Git template comment lines starting with '#'.
+content_lines = [line for line in raw_lines if not line.lstrip().startswith("#")]
+
+ai_names = r"(?:claude(?:\s+code)?|anthropic|codex|openai|chatgpt|gpt(?:\b|-[0-9])|gemini|google\s+ai|antigravity|github\s+copilot|copilot|cursor|devin)"
+ai_domains = r"(?:anthropic\.com|openai\.com|cursor\.sh|cognition\.ai|devin\.ai)"
+ai_noreply = r"(?:noreply[@](?:anthropic\.com|openai\.com|google\.com|cursor\.sh|cognition\.ai|devin\.ai|github\.com)|[a-z0-9._%+-]*?(?:claude|anthropic|codex|openai|chatgpt|gemini|antigravity|copilot|cursor|devin)[a-z0-9._%+-]*[@][a-z0-9.-]+\.[a-z]{2,}|[a-z0-9._%+-]+[@]" + ai_domains + r")"
+
+coauthor_re = re.compile(
+    r"^\s*(?:co-authored-by|assisted-by)\s*:\s*.*?(?:\b" + ai_names + r"\b|" + ai_noreply + r")",
+    re.IGNORECASE,
+)
+
+footer_re = re.compile(
+    r"(?:\U0001f916\s*generated\s+(?:with|by)\b|\bgenerated\s+(?:with|by)\s+\[?\b" + ai_names + r"\b)",
+    re.IGNORECASE,
+)
+
+author_name_re = re.compile(r"\b" + ai_names + r"\b", re.IGNORECASE)
+author_email_re = re.compile(r"(?:^|<)" + ai_noreply + r"(?:>|$)", re.IGNORECASE)
+
+failed = False
+
+for line in content_lines:
+    if coauthor_re.search(line) or footer_re.search(line):
+        print(f"ERROR: Commit message contains forbidden AI attribution on line:", file=sys.stderr)
+        print(f"  {line.strip()}", file=sys.stderr)
+        failed = True
+
+def check_ident(var_name: str, label: str) -> None:
+    global failed
+    try:
+        ident = subprocess.check_output(["git", "var", var_name], stderr=subprocess.DEVNULL).decode("utf-8", errors="replace").strip()
+    except Exception:
+        return
+    m = re.match(r"^(.*?)\s*<([^>]+)>", ident)
+    if not m:
+        return
+    name, email = m.group(1).strip(), m.group(2).strip()
+    if author_name_re.search(name) or author_email_re.search(email):
+        print(f"ERROR: Commit {label} identity matches a forbidden AI tool or noreply address: {name} <{email}>", file=sys.stderr)
+        failed = True
+
+check_ident("GIT_AUTHOR_IDENT", "author")
+check_ident("GIT_COMMITTER_IDENT", "committer")
+
+if failed:
+    print("", file=sys.stderr)
+    print("How to fix (standards/no-ai-coauthorship.md):", file=sys.stderr)
+    print("  1. Remove AI Co-authored-by trailers and 'Generated with' footers from the commit message.", file=sys.stderr)
+    print("  2. Disable attribution in your AI tool (.claude/settings.json sets attribution.commit and attribution.pr to empty).", file=sys.stderr)
+    print("  3. Ensure git user.name and user.email belong to a human developer (Human Co-authored-by trailers stay allowed).", file=sys.stderr)
+    sys.exit(1)
+PY

@@ -34,7 +34,7 @@ The **Aroma Pacífico pilot** represents the 2026 update of a coffee traceabilit
 | IaC & Reference Modules | `standards/terraform-iac-best-practices.md`, `standards/iac-rules/` | — |
 | Documentation | `standards/documentation.md` | `.agents/skills/doc-agent/SKILL.md` |
 | Architecture Diagrams | `standards/diagrams.md` | `.agents/skills/diagram-agent/SKILL.md` |
-| Git & Source Control | `standards/git-workflow.md` | `.agents/skills/git-agent/SKILL.md` |
+| Git & Source Control | `standards/git-workflow.md`, `standards/no-ai-coauthorship.md` | `.agents/skills/git-agent/SKILL.md` |
 
 ---
 

@@ -14,7 +14,7 @@ This file is the single normative constitution for how work is produced in this 
 
 1. An explicit instruction from the user in the current conversation
 2. This file (`AGENTS.md`)
-3. The `standards/` files (`standards/terraform-iac-best-practices.md`, `standards/iac-rules/`, `standards/documentation.md`, `standards/diagrams.md`, `standards/git-workflow.md`)
+3. The `standards/` files (`standards/terraform-iac-best-practices.md`, `standards/iac-rules/`, `standards/documentation.md`, `standards/diagrams.md`, `standards/git-workflow.md`, `standards/no-ai-coauthorship.md`)
 4. Repository-local `CONTRIBUTING.md`
 5. Existing conventions visible in surrounding code
 6. General best practice
@@ -32,7 +32,7 @@ This file is the single normative constitution for how work is produced in this 
 3. **Academic delivery: plan-only.** Deliver design, modular Terraform, cost evidence, and a presentation. As confirmed by the faculty advisor, the project stops at `terraform plan`. Never run `terraform apply`/`destroy`, never deploy, never register providers, and never create live cloud resources. Pipelines must still prove that code would work if deployed: formatting, validation, tests, security scans, and a reviewable plan.
 4. **Requirements source.** `docs/case/case-statement.pdf` is the sole source of requirements. Never invent a value, measurement, approval, or rehearsal result. Every assumption not in the case statement must be registered in the decision log (`docs/decision-log.md`) with a unique ID.
 5. **Trunk-based development.** Direct commits to `main` are prohibited. Work on short-lived branches (`<type>/<issue-number>-<kebab-slug>`) under 48 hours and under 400 lines.
-6. **Atomic Conventional Commits.** Every commit must follow `<type>(<scope>): <lowercase imperative subject>` with a mandatory `Refs #<issue>` footer. Commit incrementally as you go.
+6. **Atomic Conventional Commits.** Every commit must follow `<type>(<scope>): <lowercase imperative subject>` with a mandatory `Refs #<issue>` footer. Commit incrementally as you go. Never include AI co-author trailers, AI attribution footers, or AI tool author/committer identities (`standards/no-ai-coauthorship.md`).
 7. **Agent publishing boundary.** Agents commit locally and may push only their own assigned feature branch to open a PR to `main`. Agents never push to `main`, never force-push, and never create repositories. Implementer agents never merge. The designated reviewer agent, which runs on a different AI provider than the implementer, reviews the pull request and squash-merges it when it approves and every check is green, following the review protocol. A pull request that needs a business decision, weakens CI checks or deletes out-of-scope content goes to the human lead instead. The reviewer may delete the merged head branch. The human lead can still review or merge at any time.
 8. **Repository model.** Concern separation across dedicated organization repositories. Terraform code (`.tf`) belongs strictly in `aroma-pacifico-terraform-modules` and `aroma-pacifico-infrastructure`; no `.tf` files in any other repository.
 9. **Binding IaC rules.** The 28 reference module rules in `standards/iac-rules/` (`pc-iac-001.md` through `pc-iac-028.md`) and `standards/terraform-iac-best-practices.md` are binding for all Terraform work. Renaming a resource requires a `moved` block. Automated Infracost cost estimation in CI/CD pipelines is mandatory per `pc-iac-027.md`, and credential-free plan execution against the Floci AWS emulator is mandatory per `pc-iac-028.md`.
@@ -100,6 +100,7 @@ The `aroma-pacifico` GitHub organization has one repository per concern:
 | `aroma-pacifico-infrastructure` | Private | Terraform root stack of the pattern environment, remote state, variables, plan-only CI/CD |
 | `aroma-pacifico-design-system` | Private | Design system of the three applications |
 | `aroma-pacifico-presentation` | Private | Final presentation and defense script |
+| `aroma-pacifico-web` | **Public** | Technical solution showcase website published with GitHub Pages |
 
 Every issue lives in `aroma-pacifico/aroma-pacifico-roadmap`. Reference issues as `aroma-pacifico/aroma-pacifico-roadmap#<n>`, never as a bare `#<n>`.
 
@@ -168,7 +169,7 @@ Refs #<issue-number>
 - Imperative mood, lowercase start, no trailing period, no emojis.
 - Body explains the rationale and trade-offs.
 - `Refs aroma-pacifico/aroma-pacifico-roadmap#<issue-number>` footer is mandatory. Issues live in the roadmap repository, so always use the full cross-repository reference; a bare `#<n>` points at the wrong repository.
-- No tool attribution: no `Co-Authored-By` trailer for an AI tool, no `Generated with` line, no session URL, and no notes about how the content was produced, in commits or PR bodies. `.claude/settings.json` suppresses Claude Code attribution; do not reintroduce it by hand.
+- No AI co-authorship or tool attribution (`standards/no-ai-coauthorship.md`): commits and pull requests must never carry `Co-authored-by:` trailers naming AI tools or vendors (`Claude`, `Anthropic`, `Codex`, `OpenAI`, `ChatGPT`, `GPT`, `Gemini`, `Google AI`, `Antigravity`, `Copilot`, `Cursor`, `Devin`) or their `noreply` addresses, `Generated with` / `Generated by` footers, session URLs, or AI tool author/committer identities. Human `Co-authored-by:` trailers stay allowed. `.claude/settings.json` suppresses Claude Code attribution, `.githooks/commit-msg` guards commits locally (`git config core.hooksPath .githooks`), and `.github/workflows/pr-conventions.yml` enforces the rule in CI.
 
 ### 6.5 Agent Publishing Model
 - **Agents commit locally**: Local commits are expected as work progresses.
@@ -268,6 +269,7 @@ A task is not done until every applicable criterion is satisfied and verificatio
 | Direct commit to `main` | Trunk-based development requires PRs (§6.1). |
 | Force-push (`git push --force`) or merge as implementer | Agents never force-push; implementer agents never merge; designated reviewer agent reviews and merges (§6.5). |
 | Use emojis anywhere | Strict Zero-Emoji mandate (§2). |
+| Add AI `Co-authored-by:` trailers, `Generated with` footers, or AI author identities | Prohibited by `standards/no-ai-coauthorship.md` and enforced by `.githooks/commit-msg` and `pr-conventions.yml` (§6.4). |
 | Invent values, measurements, or approvals | All requirements originate from `docs/case/case-statement.pdf` (§3). |
 | Rename Terraform resource without `moved` block | Renaming in-place causes a destroy and recreate (§8). |
 | Put `.tf` files outside Terraform repositories | Terraform belongs strictly in `aroma-pacifico-terraform-modules` and `aroma-pacifico-infrastructure` (§5). |
