@@ -92,15 +92,15 @@ The `aroma-pacifico` GitHub organization has one repository per concern:
 
 | Repository | Visibility | Holds |
 |---|---|---|
-| `aroma-pacifico-roadmap` | Private | Issues, milestones, labels only (no rules, no code) |
-| `aroma-pacifico-ai-agents` | Private | Canonical rules, standards, skills and the sync script |
-| `aroma-pacifico-architecture` | Private | Case statement, decision log, ADRs, design documents, plan, observability, release notes, costs |
-| `aroma-pacifico-diagrams` | Private | Diagram sources and SVG/PNG exports, boxes D01-D13 |
-| `aroma-pacifico-terraform-modules` | **Public** | Reusable Terraform reference modules, versioned by git tag (pc-iac-015) |
-| `aroma-pacifico-infrastructure` | Private | Terraform root stack of the pattern environment, remote state, variables, plan-only CI/CD |
-| `aroma-pacifico-design-system` | Private | Design system of the three applications |
-| `aroma-pacifico-presentation` | Private | Final presentation and defense script |
-| `aroma-pacifico-web` | **Public** | Technical solution showcase website published with GitHub Pages |
+| `aroma-pacifico-roadmap` | Public | Issues, milestones, labels only (no rules, no code) |
+| `aroma-pacifico-ai-agents` | Public | Canonical rules, standards, skills and the sync script |
+| `aroma-pacifico-architecture` | Public | Case statement, decision log, ADRs, design documents, plan, observability, release notes, costs |
+| `aroma-pacifico-diagrams` | Public | Diagram sources and SVG/PNG exports, boxes D01-D13 |
+| `aroma-pacifico-terraform-modules` | Public | Reusable Terraform reference modules, versioned by git tag (pc-iac-015) |
+| `aroma-pacifico-infrastructure` | Public | Terraform root stack of the pattern environment, remote state, variables, plan-only CI/CD |
+| `aroma-pacifico-design-system` | Public | Design system of the three applications |
+| `aroma-pacifico-presentation` | Public | Final presentation and defense script |
+| `aroma-pacifico-web` | Public | Technical solution showcase website published with GitHub Pages |
 
 Every issue lives in `aroma-pacifico/aroma-pacifico-roadmap`. Reference issues as `aroma-pacifico/aroma-pacifico-roadmap#<n>`, never as a bare `#<n>`.
 
@@ -108,11 +108,11 @@ Terraform `.tf` files belong strictly in the two Terraform repositories (`aroma-
 
 ### 5.1 Public Repository Hygiene
 
-`aroma-pacifico-terraform-modules` is **public** by design, allowing `terraform init` to reference modules without credentials while preserving a zero-static-keys security posture.
+Every repository in the `aroma-pacifico` organization is **public**. In addition, `aroma-pacifico-terraform-modules` is public by design, allowing `terraform init` to reference modules without credentials while preserving a zero-static-keys security posture.
 
-In `aroma-pacifico-terraform-modules`, never write an account identifier, account-qualified ARN, internal hostname, real endpoint, credential, named principal, or client data, because git history is public too.
+Across every repository in the organization (including `aroma-pacifico-terraform-modules`), never write an account identifier, account-qualified ARN, internal hostname, real endpoint, credential, named principal, or client data, because git history is public too.
 
-**Git history is public too.** A leaked identifier, secret, or internal domain requires git history rewriting, not a follow-up commit. Pre-commit reviews and local verification must ensure no confidential identifiers enter the public repository.
+**Git history is public too.** A leaked identifier, secret, or internal domain requires git history rewriting, not a follow-up commit. Pre-commit reviews and local verification must ensure no confidential identifiers enter any repository.
 
 ### 5.2 Modules and Stacks
 
@@ -122,7 +122,7 @@ The two Terraform repositories have strictly separated roles:
 |---|---|---|
 | Holds | Reusable reference modules | Root modules (stacks) |
 | Declares `provider` / `backend` | Never | Always |
-| Contains an account identifier | Never | Yes, in stack configuration |
+| Contains an account identifier | Never | Placeholder/emulator IDs only; real IDs injected at plan time, never committed |
 | Versioned by | Git tags (`v1.2.0`) | Not versioned; represents the pattern state |
 | Changed by | A module improvement | Wiring, or a version bump |
 
